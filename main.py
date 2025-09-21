@@ -1,6 +1,3 @@
-from pymongo import MongoClient
-from pymongo.server_api import ServerApi
-
 import os
 from dotenv import load_dotenv
 import traceback
@@ -9,15 +6,15 @@ load_dotenv()
 # Get URI from .env file
 uri = os.getenv('MONGO_URI')
 
-# Create a MongoClient to connect with cluster
-cluster = MongoClient(uri, server_api=ServerApi(
-    version='1', strict=True, deprecation_errors=True))
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 
+# Create a new client and connect to the server
+client = MongoClient(uri, server_api=ServerApi('1'))
+
+# Send a ping to confirm a successful connection
 try:
-    # Get database from client
-    db = cluster['mendel-tutor']
-    # Get connection from datbase
-    collection = db['tutors']
-
-finally:
-    cluster.close()
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
+except Exception as e:
+    print(e)

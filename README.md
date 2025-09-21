@@ -1,8 +1,24 @@
 # MENDL-tutors
 ---
 
-## Paleidimas Windows
+## Projekto sturktūra
 ---
+
+- `model/`: skriptai sukurti mongo duombazes
+- `api/`: programos API
+- `app/`: React app'as
+
+## Paleidimas
+---
+
+### Paleidimas su docker
+
+Kol kas palaiko API ir UI, modeliavimui nežinau, kiek yra butinybės.
+
+1. Parsiųsti `docker`
+2. Paleisti `docker-compose`
+
+### Paleidimas Windows
 
 - Su virtual environment
 
@@ -28,10 +44,9 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Paleidimas Linux
----
+### Paleidimas Linux
+Jei bandysit per WSL2
 
-Jei bandysit per WSL2 ar MIF'o servus/VM'us paleisti
 ```
 python3 -m venv venv            # Gali tekti atsiųsti python3-venv. 
                                 # Jei nepavyks, pabandykit paprastą python vietoj python3.
@@ -39,6 +54,6 @@ python3 -m venv venv            # Gali tekti atsiųsti python3-venv.
 
 ```
 source venv/bin/activate        # Kaskart
-pip install -r requirements.txt # Atsisiuntimas, tai tik kartą
+pip3 install -r requirements.txt # Atsisiuntimas, tai tik kartą
 python3 main.py                 # Jei nepavyks, tai tsg python
 ```
