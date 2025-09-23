@@ -1,0 +1,60 @@
+from pymongo import MongoClient
+
+import os
+from dotenv import load_dotenv
+from validators import (
+    student_schema_validation, 
+    tutor_schema_validation, 
+    lesson_schema_validation, 
+    reviews_schema_validation
+)
+
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
+load_dotenv()
+
+def get_database():
+    """ Method to get the cluster for Mongo """
+
+    # Get URI and connect to cluster
+    uri = os.getenv('MONGO_URI')
+    cluster = MongoClient(uri)
+
+    return cluster['mendel-tutor']
+
+def drop_selected_collections(db, collections_to_drop: list[str]):
+    for name in collections_to_drop:
+        if name in db.list_collection_names():
+            db[name].drop()
+            print(f"Kolekcija '{name}' pašalinta.")
+        else:
+            print(f"Kolekcijos '{name}' nėra - praleidžiama.")
+
+
+def create_collection(db, collection_name: str, validator: dict):
+    db.create_collection(collection_name, validator=validator)
+
+
+if __name__ == "__main__":
+    db = get_database()
+
+    collections = {
+        "student": student_schema_validation,
+        "tutor": tutor_schema_validation,
+        "lesson": lesson_schema_validation,
+        "reviews": reviews_schema_validation
+    }
+
+    #Pereinam per visas kolekcijas ir sukuriam jas
+    for name, schema in collections.items():
+        create_collection(db, name, schema)
+
+
+    print("Collections before dropping", db.list_collection_names())
+
+    collections_to_drop = ["student", "tutor", "lesson", "reviews"]
+    drop_selected_collections(db, collections_to_drop)
+
+    print("Collections after dropping", db.list_collection_names())
+
