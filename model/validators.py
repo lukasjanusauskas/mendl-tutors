@@ -22,9 +22,11 @@ student_schema_validation = {
             },
             'subjects': {
                 'bsonType': 'array',
+                'minItems': 1,
                 # Reikes pasakyti, kad nededam galimu reiksmiu saraso, nes gali keistis/daugeti pleciantis
                 'items': {
-                    'bsonType': 'string'
+                    'bsonType': 'string',
+                    'minLength': 1,
                 },
                 'description': "List of subjects the student takes"
             },
@@ -35,6 +37,7 @@ student_schema_validation = {
             },
             'parents_phone_number':{
                 'bsonType': 'string',
+                'minLength': 1,
                 'pattern': r'^\+?\d{7,15}$',  
                 'description': "Parent's phone number"
             },
@@ -48,7 +51,6 @@ student_schema_validation = {
                 'pattern': r'^[^@]+@[^@]+\.[^@]+$',
                 'description': "Parent's email"
             }
-
         }
     }
 }
@@ -57,10 +59,11 @@ tutor_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['full_name','dob','number_of_lessons','username','password_encrypted','email'],
+        'required': ['full_name','dob','number_of_lessons','password_encrypted','email'],
         'properties': {
             'full_name': {
                 'bsonType': 'string',
+                'minLength': 1,
                 'description': "Tutor's full name"
             },
             'dob':{
@@ -130,16 +133,14 @@ tutor_schema_validation = {
                 'pattern': r'^\+?\d{7,15}$',  
                 'description': "Phone number"
             },
-            'username':{
-                'bsonType': 'string', 
-                'description': "Username"
-            },
             'password_encrypted':{
-                'bsonType': 'string', 
-                'description': "Username"
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Password SHA-256 encrypted"
             },
             'email': {
                 'bsonType': 'string',
+                'minLength': 1,
                 'pattern': r'^[^@]+@[^@]+\.[^@]+$',
                 'description': "Tutor's email"
             }
@@ -159,8 +160,9 @@ lesson_schema_validation = {
             },
             'tutor': {
                 # Kaip ir 89 eilutej
-                'bsonType': 'objectId',
-                'description': "Reference to the tutor"
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Tutor's full name"
             },
             'students': {
                 'bsonType': 'array',
@@ -170,8 +172,9 @@ lesson_schema_validation = {
                     'properties': {
                         'student': {
                             # Kaip ir tas pats
-                            'bsonType' : 'objectId',
-                            'description': "Reference to the student"
+                            'bsonType' : 'string',
+                            'minLength': 1,
+                            'description': "Student's full name"
                         },
                         'price' :{
                             'bsonType': 'double',
@@ -221,11 +224,11 @@ lesson_schema_validation = {
     }
 }
 
-reviews_schema_validation = {
+review_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['time','tutor','student', 'ratings', 'type'],
+        'required': ['time','tutor','student', 'rating', 'for_tutor'],
         'properties': {
             'time': {
                 'bsonType': 'date',
@@ -239,7 +242,7 @@ reviews_schema_validation = {
                 'bsonType': 'objectId',
                 'description': "Reference to the student"
             },
-            'ratings': {
+            'rating': {
                 'bsonType': 'int',
                 'minimum': 1,
                 'maximum': 5,

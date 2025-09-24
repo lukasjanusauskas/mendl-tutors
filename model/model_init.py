@@ -6,7 +6,7 @@ from validators import (
     student_schema_validation, 
     tutor_schema_validation, 
     lesson_schema_validation, 
-    reviews_schema_validation
+    review_schema_validation
 )
 
 from datetime import datetime
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         "student": student_schema_validation,
         "tutor": tutor_schema_validation,
         "lesson": lesson_schema_validation,
-        "reviews": reviews_schema_validation
+        "review": review_schema_validation
     }
 
     #Pereinam per visas kolekcijas ir sukuriam jas
@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     print("Collections before dropping", db.list_collection_names())
 
-    collections_to_drop = ["student", "tutor", "lesson", "reviews"]
+    collections_to_drop = ["student", "tutor", "lesson", "review"]
     drop_selected_collections(db, collections_to_drop)
 
     print("Collections after dropping", db.list_collection_names())
