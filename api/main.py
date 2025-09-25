@@ -1,18 +1,7 @@
 from flask import Flask, jsonify, request
-from pymongo import MongoClient
-from pymongo.server_api import ServerApi
+from connection import get_db
 
-import os
-from dotenv import load_dotenv
-load_dotenv()
-
-uri = os.getenv('MONGO_URI')
-
-cluster = MongoClient(uri, server_api=ServerApi(
-    version='1', strict=True, deprecation_errors=True))
-
-db = cluster['mendel-tutor']
-
+db = get_db()
 app = Flask(__name__)
 
 @app.route('/', methods = ['GET', 'POST'])
