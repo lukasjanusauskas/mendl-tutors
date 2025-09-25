@@ -2,7 +2,7 @@ student_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['full_name','dob','subjects', 'class', 'parents_phone_number'],
+        'required': ['full_name', 'dob', 'subjects', 'class', 'parents_phone_number'],
         'properties': {
             'full_name': {
                 'bsonType': 'string',
@@ -32,13 +32,13 @@ student_schema_validation = {
             },
             'phone_number': {
                 'bsonType': 'string',
-                'pattern': r'^\+?\d{7,15}$',  
+                'pattern': r'^\+?\d{7,15}$',
                 'description': "Student's phone number"
             },
             'parents_phone_number':{
                 'bsonType': 'string',
                 'minLength': 1,
-                'pattern': r'^\+?\d{7,15}$',  
+                'pattern': r'^\+?\d{7,15}$',
                 'description': "Parent's phone number"
             },
             'student_email': {
@@ -59,7 +59,7 @@ tutor_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['full_name','dob','number_of_lessons','password_encrypted','email'],
+        'required': ['full_name', 'dob', 'number_of_lessons', 'password_encrypted', 'email'],
         'properties': {
             'full_name': {
                 'bsonType': 'string',
@@ -130,7 +130,7 @@ tutor_schema_validation = {
             },
            'phone_number': {
                 'bsonType': 'string',
-                'pattern': r'^\+?\d{7,15}$',  
+                'pattern': r'^\+?\d{7,15}$',
                 'description': "Phone number"
             },
             'password_encrypted':{
@@ -152,7 +152,7 @@ lesson_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['time','tutor','students','subject','class','link'],
+        'required': ['time', 'tutor', 'students', 'subject', 'class', 'link'],
         'properties': {
             'time': {
                 'bsonType': 'date',
@@ -168,7 +168,7 @@ lesson_schema_validation = {
                 'bsonType': 'array',
                 'items': {
                     'bsonType': 'object',
-                    'required': ['student','price','paid','moved'],
+                    'required': ['student', 'price', 'paid', 'moved'],
                     'properties': {
                         'student': {
                             # Kaip ir tas pats
@@ -228,19 +228,31 @@ review_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['time','tutor','student', 'rating', 'for_tutor'],
+        'required': ['time', 'tutor', 'tutor_email', 'student', 'student_email', 'rating', 'for_tutor'],
         'properties': {
             'time': {
                 'bsonType': 'date',
                 'description': "Review date"
             },
             'tutor': {
-                'bsonType': 'objectId',
-                'description': "Reference to the tutor"
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Tutor's full name"
+            },
+            'tutor_email': {
+                'bsonType': 'string',
+                'pattern': r'^[^@]+@[^@]+\.[^@]+$',
+                'description': "Tutor's email"
             },
             'student': {
-                'bsonType': 'objectId',
-                'description': "Reference to the student"
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Student's full name"
+            },
+            'student_email': {
+                'bsonType': 'string',
+                'pattern': r'^[^@]+@[^@]+\.[^@]+$',
+                'description': "Student's email"
             },
             'rating': {
                 'bsonType': 'int',
