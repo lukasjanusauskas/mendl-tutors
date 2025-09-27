@@ -1,18 +1,28 @@
+"""
+Tutor can be:
+- added
+- assign/remove students
+- add or update phone/email
+- update fields (email)
+"""
+
 from datetime import datetime
 import hashlib
-import json
+from pymongo.results import (
+    InsertOneResult,
+    UpdateResult
+)
 
 from connection import get_db
 
 
 def parse_date_of_birth(dob: str) -> datetime:
-    """ Parses date of birth, if correct, returns ValueError, if incorrect. """
+    """ Patikrinti gimimo data. """
 
     try:
         date_of_birth = datetime.strptime(dob, "%Y-%m-%d")
     except ValueError:
-        print(f'date of birth is of the wrong format: {dob}')
-        raise ValueError()
+        raise ValueError(f'gimimo metu formatas netinkamas: {dob} turi buti YYYY-MM-DD')
     
     if date_of_birth > datetime.now():
         raise ValueError(f"date of birth value is incorrect: {dob}")
@@ -21,47 +31,63 @@ def parse_date_of_birth(dob: str) -> datetime:
 
 
 def create_new_tutor(
-    full_name: str,
-    dob: str,
-    email: str,
-    password: str,
-    phone_number: str | None = None,
-) -> dict:
-    """ Creates a tutor from given information. """
+    tutor_collection,
+    tutor_info: dict
+) -> InsertOneResult:
+    """
+    Sukurti korepetitoriu ir pushinti i duombaze.
+    Grazina InsertOneResult - objekta su inserted_id ir acknowledged.
+    """
 
-    dob = parse_date_of_birth(dob)
-    password_encoded = password.encode( 'utf-8' )
+    # Sukuriam nauja tutor dict, kad butu galima prideti fields
+    tutor: dict = {}
 
+    required_arguments = ['full_name', 'dob', 'email', 'password']
+    for field in required_arguments:
+        if field not in tutor_info:
+            raise KeyError(f'Truksta {field}')
+
+        tutor[field] = tutor_info[field]
+
+    optional_parameters = ['phone_number']
+    for field in optional_parameters:
+        if field in tutor_info:
+            tutor[field] = tutor_info[field]
+
+    # Patikriname, ar email unikalus
+    filter_email = {'email': tutor_info['email']}
+    if tutor_collection.find_one(filter_email) is not None:
+        raise ValueError('email turi buti unikalus')
+
+    # Patikrinam date of birth
+    tutor['dob'] = parse_date_of_birth(tutor_info['dob'])
+
+    # Hashinti slaptazodzius
+    password_encoded = tutor['password'].encode( 'utf-8' )
     hash_algo = hashlib.sha256()
     hash_algo.update( password_encoded )
-    password_encrypted = hash_algo.hexdigest()
 
-    tutor = {
-        'full_name': full_name,
-        'dob': dob,
-        'email': email,
-        'password_encrypted': password_encrypted,
-        'number_of_lessons': 0,
-        'students_subjects': []
-    }
+    tutor['password_encrypted'] = hash_algo.hexdigest()
+    del tutor['password']
 
-    if phone_number is not None:
-        tutor['phone_number'] = phone_number
+    # Prideti fields, kuriu reikes
+    tutor['students_subjects'] = []
+    tutor['number_of_lessons'] = 0
 
-    return tutor
+    return tutor_collection.insert_one(tutor)
+
+
+def assign_student_to_tutor(
+    tutor_email: str,
+    student_id: str,
+    subject: str
+) -> UpdateResult:
+    # Paimti studenta ir isrinkti informacija
+
+    # Prideti, jei dar nepridetas
+
+    pass
 
 if __name__ == "__main__":
-    tutor0 = create_new_tutor(
-        'Jonas Jonaitis',
-        '2004-08-07',
-        email='jonas.jonaitis@mail.lt',
-        password='1234'
-    )
-
     db = get_db()
-    db['tutor'].insert_one(tutor0)
-
-    print('TUTORS:\n')
-    cursor = db['tutor'].find({})
-    for doc in cursor:
-        print(doc)
+    tutor_collection = db['tutor']
