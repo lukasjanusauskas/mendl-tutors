@@ -59,7 +59,7 @@ tutor_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['full_name', 'dob', 'number_of_lessons', 'password_encrypted', 'email'],
+        'required': ['full_name', 'dob', 'subjects', 'number_of_lessons', 'password_encrypted', 'email'],
         'properties': {
             'full_name': {
                 'bsonType': 'string',
@@ -69,6 +69,17 @@ tutor_schema_validation = {
             'dob':{
                 'bsonType': 'date',
                 'description': "Tutor's date of birth"
+            },
+            'subjects': {
+                'bsonType': 'array',
+                'items': {
+                    'bsonType': 'object',
+                    'required': ['subject'],
+                    'properties': {
+                        'subject': {'bsonType': 'string'},
+                        'max_class': {'bsonType': 'int'}
+                    }
+                }
             },
             'rating': {
                 'bsonType': 'double',
@@ -91,7 +102,7 @@ tutor_schema_validation = {
                         'student': {
                             'bsonType': 'object',
                             'additionalProperties': True,
-                            'required': ['full_name'],
+                            'required': ['full_name', 'parents_email'],
                             'properties': {
                                 'full_name': {
                                     'bsonType': 'string',
@@ -182,14 +193,6 @@ lesson_schema_validation = {
                             'maximum': 150,
                             'description': 'Price of the lesson for the student'
                         },
-
-                        # Gal su tipais padarom enum?
-
-                        'type': {
-                            'bsonType': 'string',
-                            'enum': ['Moved', 'Unpaid additional', 'Paid additional', 'Unpaid scheduled', 'Paid scheduled']
-                        },
-
                         'paid':{
                             'bsonType': "bool",
                             'description': "Whether the lesson is paid"

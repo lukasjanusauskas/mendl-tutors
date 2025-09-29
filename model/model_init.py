@@ -46,15 +46,14 @@ if __name__ == "__main__":
         "review": review_schema_validation
     }
 
+    collections_to_drop = ["student", "tutor", "lesson", "review"]
+    drop_selected_collections(db, collections_to_drop)
+
     #Pereinam per visas kolekcijas ir sukuriam jas
     for name, schema in collections.items():
         create_collection(db, name, schema)
 
+    print("Collections after instantiation", db.list_collection_names())
 
-    print("Collections before dropping", db.list_collection_names())
-
-    collections_to_drop = ["student", "tutor", "lesson", "review"]
-    drop_selected_collections(db, collections_to_drop)
-
-    print("Collections after dropping", db.list_collection_names())
+    # print("Collections after dropping", db.list_collection_names())
 

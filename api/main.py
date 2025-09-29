@@ -14,6 +14,7 @@ def home():
             tutor_collection=db['tutor'],
             tutor_info=request.args
         )
+
     except ValueError as err:
         return jsonify({'server_response': f'{err}'}), 400
     except KeyError as err:

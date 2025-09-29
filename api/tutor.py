@@ -6,6 +6,7 @@ Tutor can be:
 - update fields (email)
 """
 
+import ast
 from datetime import datetime
 import hashlib
 from pymongo.results import (
@@ -42,7 +43,7 @@ def create_new_tutor(
     # Sukuriam nauja tutor dict, kad butu galima prideti fields
     tutor: dict = {}
 
-    required_arguments = ['full_name', 'dob', 'email', 'password']
+    required_arguments = ['full_name', 'dob', 'email', 'password', 'subjects']
     for field in required_arguments:
         if field not in tutor_info:
             raise KeyError(f'Truksta {field}')
@@ -69,6 +70,14 @@ def create_new_tutor(
 
     tutor['password_encrypted'] = hash_algo.hexdigest()
     del tutor['password']
+
+    # Konvertuoti is string
+    if isinstance(tutor['subjects'], str):
+        tutor['subjects'] = ast.literal_eval( tutor['subjects'] )
+    elif isinstance(tutor['subjects'], dict):
+        pass
+    else:
+        raise ValueError('Unexpected')
 
     # Prideti fields, kuriu reikes
     tutor['students_subjects'] = []
