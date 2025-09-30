@@ -3,6 +3,9 @@ from connection import get_db
 from tutor import (
     create_new_tutor
 )
+from student import (
+    create_new_student
+)
 
 db = get_db()
 app = Flask(__name__)
@@ -14,7 +17,6 @@ def home():
             tutor_collection=db['tutor'],
             tutor_info=request.args
         )
-
     except ValueError as err:
         return jsonify({'server_response': f'{err}'}), 400
     except KeyError as err:
@@ -36,6 +38,26 @@ def home():
         })
 
         return output, 400
+
+@app.route("/student/", methods=["POST"])
+def add_student():
+    try:
+        insert_result = create_new_student(
+            student_collection=db['student'],
+            student_info=request.get_json()
+        )
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    if insert_result.acknowledged:
+        return jsonify({
+            "message": "Student added successfully",
+            "student_id": str(insert_result.inserted_id)  # <- конвертируем ObjectId в строку
+        }), 201
+    else:
+        return jsonify({"message": "Nepavyko pridėti studento"}), 400
 
 
 if __name__ == '__main__':
