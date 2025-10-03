@@ -2,14 +2,14 @@ student_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['full_name', 'dob', 'subjects', 'class', 'parents_phone_number'],
+        'required': ['full_name', 'date_of_birth', 'subjects', 'class', 'parents_phone_number'],
         'properties': {
             'full_name': {
                 'bsonType': 'string',
                 "minLength": 1, # Reiketu prideti minimalu, negali buti tuscias
                 'description': "Student's full name"
             },
-            'dob':{
+            'date_of_birth':{
                 'bsonType': 'date',
                 # Cia validacija galima bus daryti su paciu API, jei reikes
                 'description': "Student's date of birth"
@@ -35,20 +35,25 @@ student_schema_validation = {
                 'pattern': r'^\+?\d{7,15}$',
                 'description': "Student's phone number"
             },
-            'parents_phone_number':{
-                'bsonType': 'string',
-                'minLength': 1,
-                'pattern': r'^\+?\d{7,15}$',
-                'description': "Parent's phone number"
+            'parents_phone_numbers':{
+                'bsonType': 'array',
+                'items': {
+                    'bsonType': 'string',
+                    'pattern': r'^\+?\d{7,15}$'
+                },
+                'description': "Parent's phone numbers"
             },
             'student_email': {
                 'bsonType': 'string',
                 'pattern': r'^[^@]+@[^@]+\.[^@]+$',
                 'description': "Student's email"
             },
-            'parents_email': {
-                'bsonType': 'string',
-                'pattern': r'^[^@]+@[^@]+\.[^@]+$',
+            'parents_emails': {
+                'bsonType': 'array',
+                'items': {
+                    'bsonType': 'string',
+                    'pattern': r'^[^@]+@[^@]+\.[^@]+$'
+                },
                 'description': "Parent's email"
             }
         }
@@ -59,14 +64,33 @@ tutor_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['full_name', 'dob', 'subjects', 'number_of_lessons', 'password_encrypted', 'email'],
+        'required': [
+            'first_name', 
+            'last_name', 
+            'email', 
+            'date_of_birth', 
+            'subjects', 
+            'subjects_students', 
+            'password_hashed'
+        ],
         'properties': {
-            'full_name': {
+            'first_name': {
                 'bsonType': 'string',
                 'minLength': 1,
                 'description': "Tutor's full name"
             },
-            'dob':{
+            'last_name': {
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Tutor's full name"
+            },
+            'email': {
+                'bsonType': 'string',
+                'minLength': 1,
+                'pattern': r'^[^@]+@[^@]+\.[^@]+$',
+                'description': "Tutor's email"
+            },
+            'date_of_birth':{
                 'bsonType': 'date',
                 'description': "Tutor's date of birth"
             },
@@ -74,24 +98,13 @@ tutor_schema_validation = {
                 'bsonType': 'array',
                 'items': {
                     'bsonType': 'object',
-                    'required': ['subject'],
+                    # Dėl API paprastumo turi būti max_class, jei naudotojas neįrašo, užpildom su 12
+                    'required': ['subject', 'max_class'], 
                     'properties': {
                         'subject': {'bsonType': 'string'},
                         'max_class': {'bsonType': 'int'}
                     }
                 }
-            },
-            'rating': {
-                'bsonType': 'double',
-                # 'minimum': 0,
-                'minimum': 1, # Zemiau reitingai nuo 1 iki 5, tai ir cia turetu buti, jeigu reitingu nera, tai ir cia nera
-                'maximum': 5,
-                'description': "Tutor's rating"
-            },
-            'number_of_lessons': {
-                'bsonType': 'int',
-                'minimum': 0,
-                'description': "Tutor's specified class"
             },
             'subjects_students': {
                 'bsonType': 'array',
@@ -102,11 +115,17 @@ tutor_schema_validation = {
                         'student': {
                             'bsonType': 'object',
                             'additionalProperties': True,
-                            'required': ['full_name', 'parents_email'],
+                            'required': ['student_id', 'first_name', 'last_name', 'parents_phone_numbers'],
                             'properties': {
-                                'full_name': {
+                                'student_id': {'bsonType': 'objectId'},
+                                'first_name': {
                                     'bsonType': 'string',
-                                    "minLength": 1, # Reiketu prideti minimalu, negali buti tuscias
+                                    "minLength": 1,
+                                    'description': "Student's full name"
+                                },
+                                'last_name': {
+                                    'bsonType': 'string',
+                                    "minLength": 1,
                                     'description': "Student's full name"
                                 },
                                 'phone_number': {
@@ -114,20 +133,13 @@ tutor_schema_validation = {
                                     'pattern': r'^\+?\d{7,15}$',  
                                     'description': "Student's phone number"
                                 },
-                                'parents_phone_number':{
-                                    'bsonType': 'string',
-                                    'pattern': r'^\+?\d{7,15}$',  
-                                    'description': "Parent's phone number"
-                                },
-                                'student_email': {
-                                    'bsonType': 'string',
-                                    'pattern': r'^[^@]+@[^@]+\.[^@]+$',
-                                    'description': "Student's email"
-                                },
-                                'parents_email': {
-                                    'bsonType': 'string',
-                                    'pattern': r'^[^@]+@[^@]+\.[^@]+$',
-                                    'description': "Parent's email"
+                                'parents_phone_numbers':{
+                                    'bsonType': 'array',
+                                    'items': {
+                                        'bsonType': 'string',
+                                        'pattern': r'^\+?\d{7,15}$'
+                                    },
+                                    'description': "Parent's phone numbers"
                                 }
                             }
                         },
@@ -139,21 +151,15 @@ tutor_schema_validation = {
                 },
                 'description': "List of subjects the student takes"
             },
-           'phone_number': {
+            'phone_number': {
                 'bsonType': 'string',
                 'pattern': r'^\+?\d{7,15}$',
                 'description': "Phone number"
             },
-            'password_encrypted':{
+            'password_hashed':{
                 'bsonType': 'string',
                 'minLength': 1,
                 'description': "Password SHA-256 encrypted"
-            },
-            'email': {
-                'bsonType': 'string',
-                'minLength': 1,
-                'pattern': r'^[^@]+@[^@]+\.[^@]+$',
-                'description': "Tutor's email"
             }
         }
     }
@@ -163,29 +169,57 @@ lesson_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['time', 'tutor', 'students', 'subject', 'class', 'link'],
+        'required': ['time', 'tutor', 'students', 'subject', 'link'],
         'properties': {
             'time': {
                 'bsonType': 'date',
                 'description': "Lesson date and time"
             },
             'tutor': {
-                # Kaip ir 89 eilutej
-                'bsonType': 'string',
-                'minLength': 1,
+                'bsonType': 'object',
+                'required': ['tutor_id', 'first_name', 'last_name'],
+                'properties': {
+                    'tutor_id': {'bsonType': 'objectId'},
+                    'first_name': {
+                        'bsonType': 'string',
+                        'minLength': 1,
+                        'description': "Tutor's full name"
+                    },
+                    'last_name': {
+                        'bsonType': 'string',
+                        'minLength': 1,
+                        'description': "Tutor's full name"
+                    }
+                },
                 'description': "Tutor's full name"
             },
             'students': {
                 'bsonType': 'array',
                 'items': {
                     'bsonType': 'object',
-                    'required': ['student', 'price', 'paid', 'moved'],
+                    'required': [
+                        'student_id', 
+                        'student_name', 
+                        'parents_phone_number', 
+                        'price', 
+                        'paid', 
+                        'moved'
+                    ],
                     'properties': {
-                        'student': {
-                            # Kaip ir tas pats
+                        'student_id': {'bsonType': 'objectId'},
+                        'student_name': {
                             'bsonType' : 'string',
                             'minLength': 1,
-                            'description': "Student's full name"
+                            'description': "Student's name"
+                        },
+                        'parents_phone_number':{
+                            'bsonType': 'array',
+                            'items': {
+                                'bsonType': 'string',
+                                'minLength': 1,
+                                'pattern': r'^\+?\d{7,15}$',
+                            },
+                            'description': "Parent's phone number"
                         },
                         'price' :{
                             'bsonType': 'double',
@@ -231,7 +265,7 @@ review_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['time', 'tutor', 'tutor_email', 'student', 'student_email', 'rating', 'for_tutor'],
+        'required': ['time', 'tutor', 'student', 'review_text', 'for_tutor'],
         'properties': {
             'time': {
                 'bsonType': 'date',
@@ -242,20 +276,14 @@ review_schema_validation = {
                 'minLength': 1,
                 'description': "Tutor's full name"
             },
-            'tutor_email': {
-                'bsonType': 'string',
-                'pattern': r'^[^@]+@[^@]+\.[^@]+$',
-                'description': "Tutor's email"
-            },
             'student': {
                 'bsonType': 'string',
                 'minLength': 1,
                 'description': "Student's full name"
             },
-            'student_email': {
+            'review_text': {
                 'bsonType': 'string',
-                'pattern': r'^[^@]+@[^@]+\.[^@]+$',
-                'description': "Student's email"
+                'description': 'Text of the review'
             },
             'rating': {
                 'bsonType': 'int',
