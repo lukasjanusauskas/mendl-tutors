@@ -2,12 +2,25 @@ student_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
         'additionalProperties': True,
-        'required': ['full_name', 'date_of_birth', 'subjects', 'class', 'parents_phone_number'],
+        'required': [
+            'first_name', 
+            'last_name', 
+            'date_of_birth', 
+            'subjects', 
+            'class', 
+            'password_hashed', 
+            'parents_phone_numbers'
+        ],
         'properties': {
             'full_name': {
                 'bsonType': 'string',
                 "minLength": 1, # Reiketu prideti minimalu, negali buti tuscias
                 'description': "Student's full name"
+            },
+            'password_hashed':{
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Password SHA-256 encrypted"
             },
             'date_of_birth':{
                 'bsonType': 'date',

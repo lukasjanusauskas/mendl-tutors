@@ -156,53 +156,72 @@ def tutor_remove_student(tutor_id: str, student_id: str):
         return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
 #-------------------STUDENT API--------------------------
 
-# @app.route("/student/", methods=["POST"])
-# def add_student():
-#     try:
-#         insert_result = create_new_student(
-#             student_collection=db['student'],
-#             student_info=request.get_json()
-#         )
-#     except ValueError as ve:
-#         return jsonify({"error": str(ve)}), 400
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
+@app.route("/student/", methods=["POST"])
+def add_student():
+    try:
+        insert_result = create_new_student(
+            student_collection=db['student'],
+            student_info=request.get_json()
+        )
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-#     if insert_result.acknowledged:
-#         return jsonify({
-#             "message": "Student added successfully",
-#             "student_id": str(insert_result.inserted_id)
-#         }), 201
-#     else:
-#         return jsonify({"message": "Nepavyko pridėti studento"}), 400
+    if insert_result.acknowledged:
+        return jsonify({
+            "message": "Student added successfully",
+            "student_id": str(insert_result.inserted_id)
+        }), 201
+    else:
+        return jsonify({"message": "Nepavyko pridėti studento"}), 400
 
-# @app.route("/student/<string:student_id>", methods=["GET"])
-# def api_get_student(student_id):
-#     """API endpointas gauti vieną studentą pagal ID."""
-#     student = get_student_by_id(db["student"], student_id)
-#     if not student:
-#         return jsonify({"error": "Studentas nerastas"}), 404
-#     return jsonify(student), 200
+@app.route("/student/<string:student_id>", methods=["GET"])
+def api_get_student(student_id):
+    """API endpointas gauti vieną studentą pagal ID."""
+    student = get_student_by_id(db["student"], student_id)
+    if not student:
+        return jsonify({"error": "Studentas nerastas"}), 404
+    return jsonify(student), 200
 
-# @app.route("/students", methods=["GET"])
-# def api_get_students():
-#     """API endpointas gauti visus studentus arba ieškoti pagal vardą/pavardę."""
-#     name = request.args.get("name")
-#     if name:
-#         return jsonify(get_students_by_name(db["student"], name)), 200
-#     return jsonify(get_all_students(db["student"])), 200
+@app.route("/students", methods=["GET"])
+def api_get_students():
+    """API endpointas gauti visus studentus arba ieškoti pagal vardą/pavardę."""
 
-# @app.route("/student/<student_id>", methods=["DELETE"])
-# def remove_student(student_id: str):
-#     try:
-#         result = delete_student(db["student"], db["tutor"], student_id)
-#         if result["deleted"]:
-#             return jsonify({"server_response": "Studentas ištrintas ir pašalintas iš korepetitorių"}), 200
-#         else:
-#             return jsonify({"server_response": "Studentas nerastas"}), 404
-#     except Exception as e:
-#         return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
+    first_name = request.args.get("first_name")
+    last_name = request.args.get("last_name")
 
+    if first_name and last_name:
+        return jsonify(get_students_by_name(db["student"], first_name, last_name)), 200
+
+    # Jei pateiktas first_name, bet ne last_name
+    elif first_name:
+        all_students = get_all_students(db["student"])
+        msg = {'server_msg': 'Pateikete full_name, reikia ir last_name'}
+
+        all_students = [student | msg for student in all_students]
+        return jsonify(all_students), 206
+
+    # Jei pateiktas last_name, bet ne first_name
+    elif last_name:
+        all_students = get_all_students(db["student"])
+        msg = {'server_msg': 'Pateikete last_name, reikia ir first_name'}
+
+        all_students = [student | msg for student in all_students]
+        return jsonify(all_students), 206
+
+    return jsonify(get_all_students(db["student"])), 200
+
+@app.route("/student/<student_id>", methods=["DELETE"])
+def remove_student(student_id: str):
+    try:
+        result = delete_student(db["student"], db["tutor"], student_id)
+        if result["deleted"]:
+            return jsonify({"server_response": "Studentas ištrintas ir pašalintas iš korepetitorių"}), 200
+        else:
+            return jsonify({"server_response": "Studentas nerastas"}), 404
+    except Exception as e:
+        return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
 
 
 if __name__ == '__main__':
