@@ -1,4 +1,10 @@
 from datetime import datetime
+import bson
+import string
+
+BASE_URL = 'mendltutors.lt'
+LINK_RANDOM_PART = 32
+POSSIBLE_CHARACTERS = string.ascii_letters + string.digits
 
 
 def parse_date_of_birth(dob: str) -> datetime:
@@ -18,3 +24,21 @@ def serialize_doc(doc: dict) -> dict:
     """Konvertuoja ObjectId į eilutę JSON grąžinimui."""
     doc["_id"] = str(doc["_id"])
     return doc
+
+
+def generate_lesson_id_link() -> str:
+    lesson_id = bson.ObjectId()
+    return f'{BASE_URL}/{lesson_id}'
+
+
+def parse_time_of_lesson(time: str) -> datetime:
+
+    try:
+        time_lesson = datetime.strptime(time, "%Y-%m-%d %H:%M")
+    except ValueError:
+        raise ValueError(f'Pamokos metu formatas netinkamas: {time} turi buti YYYY-MM-DD HH:MM')
+
+    if time_lesson < datetime.now():
+        raise ValueError(f"Negalima sukurti pamokos praeityje")
+
+    return time_lesson

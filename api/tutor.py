@@ -82,7 +82,7 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
     del tutor['password']
 
     # 8️⃣ Papildomi laukai
-    tutor['subjects_students'] = []
+    tutor['students_subjects'] = []
 
     # 9️⃣ Įrašome į DB
     return tutor_collection.insert_one(tutor)

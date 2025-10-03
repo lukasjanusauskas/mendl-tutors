@@ -83,7 +83,7 @@ tutor_schema_validation = {
             'email', 
             'date_of_birth', 
             'subjects', 
-            'subjects_students', 
+            'students_subjects', 
             'password_hashed'
         ],
         'properties': {
@@ -212,20 +212,26 @@ lesson_schema_validation = {
                     'bsonType': 'object',
                     'required': [
                         'student_id', 
-                        'student_name', 
-                        'parents_phone_number', 
+                        'first_name', 
+                        'last_name', 
+                        'parents_phone_numbers', 
                         'price', 
                         'paid', 
                         'moved'
                     ],
                     'properties': {
                         'student_id': {'bsonType': 'objectId'},
-                        'student_name': {
+                        'first_name': {
                             'bsonType' : 'string',
                             'minLength': 1,
                             'description': "Student's name"
                         },
-                        'parents_phone_number':{
+                        'last_name': {
+                            'bsonType' : 'string',
+                            'minLength': 1,
+                            'description': "Student's name"
+                        },
+                        'parents_phone_numbers':{
                             'bsonType': 'array',
                             'items': {
                                 'bsonType': 'string',

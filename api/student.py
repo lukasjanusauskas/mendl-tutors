@@ -54,13 +54,12 @@ def create_new_student(
     if not isinstance(student['subjects'], list) or len(student['subjects']) == 0:
         raise ValueError("subjects turi buti ne tuscias masyvas")
 
-    # 5️⃣ Tikriname, ar toks studentas jau egzistuoja (first_name + date_of_birth + parents_phone_number)
+    # 5️⃣ Tikriname, ar toks studentas jau egzistuoja (first_name + date_of_birth)
     date_of_birth_start = date_of_birth_date
     date_of_birth_end = date_of_birth_start + timedelta(days=1)
     existing_student = student_collection.find_one({
         "first_name": student['first_name'],
         "date_of_birth": {"$gte": date_of_birth_start, "$lt": date_of_birth_end},
-        "parents_phone_numbers": { "$in": student['parents_phone_numbers'] }
     })
     if existing_student:
         raise ValueError("Toks mokinys jau egzistuoja!")

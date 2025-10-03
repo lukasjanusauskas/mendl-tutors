@@ -25,6 +25,7 @@ Iškviečiant, endpointus `tutor/`, `tutor/assign_student/`, `student/`.
 ```
 
 ```
+# Sukurti mokini
 {    
     "first_name": "Petras",
     "last_name": "Petraitis",
@@ -39,4 +40,31 @@ Iškviečiant, endpointus `tutor/`, `tutor/assign_student/`, `student/`.
 }
 ```
 
+```
+# Prideti mokini mokytojui
+{
+    "tutor_id": "68dfd73286998ba652258c44",
+    "student_id": "68dfe430c266645c2c96b796",
+    "subject": "MAT"
+}
+```
+
+```
+# Prideti pamoka
+{
+    "time": "2025-10-07 15:00",
+    "tutor_id": "68e015c72541f9f89f6ca611",
+    "student_ids": [
+        "68dfe430c266645c2c96b796",
+        "68dfe5e166fb223bfcdd8807"
+    ],
+    "subject": "MAT"
+}
+```
+
 ### Su parametrais
+
+- Pakeisti pamokos laika
+```
+localhost:5000/lesson/change_time/68e022ffdb5a47817cf49790/2025-10-08 15:00
+```

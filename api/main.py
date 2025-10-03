@@ -19,6 +19,17 @@ from student import (
     get_students_by_name,
     delete_student
 )
+from lesson import (
+    create_lesson,
+    add_student_to_lesson,
+    change_lesson_date,
+    delete_lesson,
+    list_lessons_tutor_week,
+    list_lessons_tutor_month,
+    list_lessons_student_week,
+    list_lesson_student_month,
+    change_lesson_info_for_student
+)
 
 db = get_db()
 app = Flask(__name__)
@@ -222,6 +233,190 @@ def remove_student(student_id: str):
             return jsonify({"server_response": "Studentas nerastas"}), 404
     except Exception as e:
         return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
+
+#-------------------LESSON API--------------------------
+@app.route("/lesson/", methods=["POST"])
+def add_new_lesson():
+    try:
+        insert_result = create_lesson(
+            lesson_collection=db['lesson'],
+            tutor_collection=db['tutor'],
+            student_collection=db['student'],
+            lesson_info=request.get_json()
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except KeyError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except Exception as err:
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+    if insert_result.acknowledged:
+        output = jsonify({
+            'server_response': 'pavyko',
+            'lesson_id': str( insert_result.inserted_id )
+        })
+
+        return output, 200
+
+    else:
+        output = jsonify({'server_response': 'nepavyko'})
+
+        return output, 400
+
+
+@app.route("/lesson/delete_lesson/<lesson_id>", methods=["DELETE"])
+def delete_lesson_by_id(lesson_id):
+    """ Delete lesson -> pakeisti tipa i pakeista, kadangi isimti pilnai nenorim del ateities konfliktu. """
+    
+    update_result = delete_lesson(db['lesson'], lesson_id)
+    if update_result is not None:
+        return jsonify({'server_response': 'Pakeistas pamokos statusas'}), 200
+ 
+    else:
+        return jsonify({'server_response': 'Pamoka negalejo buti istrinta, nes ji jau istrinta'})
+
+
+@app.route("/lesson/add_student/<lesson_id>/<student_id>", methods=["POST"])
+def add_studdent_lesson(lesson_id: str, student_id: str):
+    try:
+        update_result = add_student_to_lesson(
+            db['lesson'], 
+            db['student'],
+            lesson_id,
+            student_id
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+
+    if update_result is not None:
+        output = jsonify({
+            'server_response': 'Mokinys pridetas',
+        })
+
+        return output, 200
+    
+    else:
+        return jsonify({'server_response': 'nepavyko'}), 400
+
+
+@app.route("/lesson/change_time/<lesson_id>/<time>", methods=["POST"])
+def change_lesson_time(lesson_id: str, time: str):
+    try:
+        update_result = change_lesson_date(db['lesson'], lesson_id, time)
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+
+    if update_result is not None:
+        output = jsonify({
+            'server_response': 'pamoka_atnaujinta',
+            'time': time
+        })
+
+        return output, 200
+
+    else:
+        return jsonify({'server_response': 'nepavyko'}), 400
+
+
+@app.route("/lesson/tutor/<tutor_id>", methods=["GET"])
+def list_active_lessons_week_tutor(tutor_id: str):
+    try:
+        read_result = list_lessons_tutor_week(db['lesson'], db['tutor'], tutor_id)
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+
+    if read_result is not None:
+        return read_result, 200
+
+    else:
+        return jsonify({'server_response': 'nepavyko'}), 400
+
+
+@app.route("/lesson/tutor/<tutor_id>/<year>/<month>", methods=["GET"])
+def list_all_lessons_month_tutor(tutor_id: str, year: int, month: int):
+    try:
+        read_result = list_lessons_tutor_month(
+            db['lesson'], 
+            db['tutor'], 
+            tutor_id = tutor_id,
+            year = year,
+            month = month
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+
+    if read_result is not None:
+        return read_result, 200
+
+    else:
+        return jsonify({'server_response': 'nepavyko'}), 400
+
+
+@app.route("/lesson/student/<student_id>", methods=["GET"])
+def list_active_lessons_week_student(student_id: str):
+    try:
+        read_result = list_lessons_student_week(
+            db['lesson'], db['student'], student_id
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+
+    if read_result is not None:
+        return read_result, 200
+
+    else:
+        return jsonify({'server_response': 'nepavyko'}), 400
+
+
+@app.route("/lesson/student/<student_id>/<year>/<month>", methods=["GET"])
+def list_all_lessons_month_student(student_id: str, year: int, month: int):
+    try:
+        read_result = list_lesson_student_month(
+            db['lesson'], 
+            db['student'], 
+            student_id = student_id,
+            year = year,
+            month = month
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+
+    if read_result is not None:
+        return read_result, 200
+
+    else:
+        return jsonify({'server_response': 'nepavyko'}), 400
+
+
+@app.route("/lesson/change_info", methods=["POST"])
+def change_lesson_information():
+    try:
+        update_result = create_new_tutor(
+            lesson_collection=db['lesson'],
+            tutor_collection=db['tutor'],
+            tutor_info=request.get_json()
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except KeyError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except Exception as err:
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+    if update_result is not None:
+        output = jsonify({
+            'server_response': 'Pavyko padaryti pakeitima',
+        })
+
+        return output, 200
+
+    else:
+        output = jsonify({
+            'server_response': 'nepavyko'
+        })
+
+        return output, 400
 
 
 if __name__ == '__main__':
