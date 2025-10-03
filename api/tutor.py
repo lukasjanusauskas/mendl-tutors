@@ -33,7 +33,8 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
     tutor: dict = {}
 
     # 1️⃣ Tikriname privalomus laukus
-    required_arguments = ['full_name', 'dob', 'email', 'password', 'subjects']
+    required_arguments = [
+        'first_name', 'last_name', 'date_of_birth', 'email', 'password', 'subjects']
     for field in required_arguments:
         if field not in tutor_info:
             raise KeyError(f'Truksta {field}')
@@ -46,18 +47,24 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
             tutor[field] = tutor_info[field]
 
     # 3️⃣ Konvertuojame gimimo datą į datetime objektą
-    dob_date = parse_date_of_birth(tutor_info['dob'])
-    tutor['dob'] = dob_date
+    date_of_birth_date = parse_date_of_birth(tutor_info['date_of_birth'])
+    tutor['date_of_birth'] = date_of_birth_date
 
-    # 4️⃣ Patikriname, ar toks tutor jau egzistuoja (full_name + dob)
-    dob_start = dob_date
-    dob_end = dob_start + timedelta(days=1)
-    existing_tutor = tutor_collection.find_one({
-        "full_name": tutor['full_name'],
-        "dob": {"$gte": dob_start, "$lt": dob_end}
-    })
-    if existing_tutor:
-        raise ValueError("Korepetitorius su tokiu vardu ir gimimo data jau egzistuoja!")
+    # # 4️⃣ Patikriname, ar toks tutor jau egzistuoja (full_name + date_of_birth)
+    # # Nemanau, kad reikia sekancio:
+    # date_of_birth_start = date_of_birth_date
+    # date_of_birth_end = date_of_birth_start + timedelta(days=1)
+    # existing_tutor = tutor_collection.find_one({
+    #     "full_name": tutor['full_name'],
+    #     "date_of_birth": {"$gte": date_of_birth_start, "$lt": date_of_birth_end}
+    # })
+    # if existing_tutor:
+    #     raise ValueError("Korepetitorius su tokiu vardu ir gimimo data jau egzistuoja!")
+
+    # Uztikrinti, kad max_class nebutu tuscias. Jei nera irodyta, padaroma 12
+    for subject in tutor['subjects']:
+        if 'max_class' not in subject:
+            subject['max_class'] = 12
 
     # 5️⃣ Patikriname unikalų e-mail
     if tutor_collection.find_one({"email": tutor['email']}) is not None:
@@ -71,12 +78,11 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
     password_encoded = tutor['password'].encode('utf-8')
     hash_algo = hashlib.sha256()
     hash_algo.update(password_encoded)
-    tutor['password_encrypted'] = hash_algo.hexdigest()
+    tutor['password_hashed'] = hash_algo.hexdigest()
     del tutor['password']
 
     # 8️⃣ Papildomi laukai
-    tutor['students_subjects'] = []
-    tutor['number_of_lessons'] = 0
+    tutor['subjects_students'] = []
 
     # 9️⃣ Įrašome į DB
     return tutor_collection.insert_one(tutor)
@@ -85,7 +91,7 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
 def assign_student_to_tutor(
     tutor_collection,
     student_collection,
-    tutor_email: str,
+    tutor_id: str,
     student_id: str,
     subject: str
 ) -> UpdateResult:
@@ -99,8 +105,8 @@ def assign_student_to_tutor(
     if not student:
         raise ValueError("Studentas su tokiu ID nerastas")
 
-    # 2️⃣ Patikrinti ar egzistuoja korepetitorius pagal email
-    tutor = tutor_collection.find_one({"email": tutor_email})
+    # 2️⃣ Patikrinti ar egzistuoja korepetitorius pagal id
+    tutor = tutor_collection.find_one({"_id": ObjectId(tutor_id)})
     if not tutor:
         raise ValueError("Korepetitorius su tokiu email nerastas")
 
@@ -119,17 +125,20 @@ def assign_student_to_tutor(
 
     # 5️⃣ Sukurti įrašą studentui
     student_entry = {
-        "student_id": str(student["_id"]),
-        "full_name": student["full_name"],
+        "student": {
+            "student_id": str(student["_id"]),
+            "first_name": student["first_name"],
+            "last_name": student["last_name"],
+            "parents_phone_numbers": student['parents_phone_numbers']
+        },
         "subject": subject
     }
 
     # 6️⃣ Pridėti prie tutor.students_subjects
     update_result = tutor_collection.update_one(
-        {"email": tutor_email},
+        {"_id": ObjectId(tutor_id)},
         {
             "$push": {"students_subjects": student_entry},
-            "$inc": {"number_of_lessons": 0}  # paliekam lauką valdomą ateityje
         }
     )
 
@@ -138,13 +147,13 @@ def assign_student_to_tutor(
 def get_tutor_students(
     tutor_collection,
     student_collection,
-    tutor_email: str
+    tutor_id: str
 ) -> list[dict]:
     """
     Grazina visus tutor studentus su vardais ir subjectais.
     """
 
-    tutor = tutor_collection.find_one({"email": tutor_email})
+    tutor = tutor_collection.find_one({"_id": ObjectId(tutor_id)})
     if not tutor:
         raise ValueError("Korepetitorius nerastas")
 
@@ -155,7 +164,7 @@ def get_tutor_students(
         student = student_collection.find_one({"_id": ObjectId(entry["student_id"])})
         if student:
             results.append({
-                "student_id": entry["student_id"],
+                "student_id": ObjectId(entry["student_id"]),
                 "full_name": student.get("full_name", "Nezinomas"),
                 "subject": entry["subject"]
             })
@@ -187,15 +196,30 @@ def delete_tutor(tutor_collection, tutor_id: str) -> DeleteResult:
 
 def remove_student_from_tutor(
     tutor_collection,
-    tutor_email: str,
+    tutor_id: str,
     student_id: str
 ) -> dict:
     """
     Pašalina studentą iš konkretaus korepetitoriaus students_subjects pagal student_id.
     """
+
+    # Patikrinti ar yra tutor_id
+    tutor = tutor_collection.find_one({'_id': ObjectId(tutor_id)})
+
+    if not tutor:
+        raise ValueError('Tokio korepetitoriaus nera')
+
+    # Patikrinti ar yra student_id
+
+    for student, _ in tutor['subjects_students']:
+        if student_id == str(student['student_id']):
+            break
+    else:
+        raise ValueError('Tokio mokinio korepetitorius neturi')
+
     result: UpdateResult = tutor_collection.update_one(
-        {"email": tutor_email},
-        {"$pull": {"students_subjects": {"student_id": student_id}}}
+        {"_id": ObjectId(tutor_id)},
+        {"$pull": {"students_subjects": {"student_id": ObjectId(student_id)}}}
     )
 
     if result.modified_count == 1:

@@ -25,7 +25,7 @@ app = Flask(__name__)
 
 #--------------TUTOR API--------------------------------------
 @app.route('/tutor/', methods = ['POST'])
-def home():
+def add_new_tutor():
     try:
         insert_result = create_new_tutor(
             tutor_collection=db['tutor'],
@@ -35,7 +35,7 @@ def home():
         return jsonify({'server_response': f'{err}'}), 400
     except KeyError as err:
         return jsonify({'server_response': f'{err}'}), 400
-    except TypeError as err:
+    except Exception as err:
         return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
 
     if insert_result.acknowledged:
@@ -53,17 +53,17 @@ def home():
 
         return output, 400
 
-@app.route("/assign_student/", methods=["POST"])
+@app.route("/tutor/assign_student/", methods=["POST"])
 def assign_student():
     """
     Priskirti studenta korepetitoriui pagal email ir subject.
-    Laukiamas JSON su tutor_email, student_id ir subject.
+    Laukiamas JSON su tutor_id, student_id ir subject.
     """
     try:
         data = request.get_json()
 
         # Tikriname ar visi reikalingi laukai yra
-        required_fields = ["tutor_email", "student_id", "subject"]
+        required_fields = ["tutor_id", "student_id", "subject"]
         for field in required_fields:
             if field not in data:
                 return jsonify({"server_response": f"Trūksta {field}"}), 400
@@ -71,7 +71,7 @@ def assign_student():
         result = assign_student_to_tutor(
             tutor_collection=db["tutor"],
             student_collection=db["student"],
-            tutor_email=data["tutor_email"],
+            tutor_id=data["tutor_id"],
             student_id=data["student_id"],
             subject=data["subject"]
         )
@@ -79,7 +79,7 @@ def assign_student():
         if result.modified_count > 0:
             return jsonify({
                 "server_response": "Studentas priskirtas sėkmingai",
-                "tutor_email": data["tutor_email"],
+                "tutor_id": data["tutor_id"],
                 "student_id": data["student_id"],
                 "subject": data["subject"]
             }), 200
@@ -93,16 +93,16 @@ def assign_student():
     except Exception as e:
         return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
 
-@app.route("/tutor/<email>/students", methods=["GET"])
-def tutor_students(email: str):
+@app.route("/tutor/<tutor_id>/students", methods=["GET"])
+def tutor_students(tutor_id: str):
     try:
         students = get_tutor_students(
             tutor_collection=db["tutor"],
             student_collection=db["student"],
-            tutor_email=email
+            tutor_id=tutor_id
         )
         return jsonify({
-            "tutor_email": email,
+            "tutor_id": tutor_id,
             "students": students
         }), 200
 
@@ -138,12 +138,12 @@ def remove_tutor(tutor_id: str):
     except Exception as e:
         return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
 
-@app.route("/tutor/<tutor_email>/students/<student_id>", methods=["DELETE"])
-def tutor_remove_student(tutor_email: str, student_id: str):
+@app.route("/tutor/<tutor_id>/students/<student_id>", methods=["DELETE"])
+def tutor_remove_student(tutor_id: str, student_id: str):
     try:
         result = remove_student_from_tutor(
             tutor_collection=db["tutor"],
-            tutor_email=tutor_email,
+            tutor_id=tutor_id,
             student_id=student_id
         )
 
@@ -156,52 +156,52 @@ def tutor_remove_student(tutor_email: str, student_id: str):
         return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
 #-------------------STUDENT API--------------------------
 
-@app.route("/student/", methods=["POST"])
-def add_student():
-    try:
-        insert_result = create_new_student(
-            student_collection=db['student'],
-            student_info=request.get_json()
-        )
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# @app.route("/student/", methods=["POST"])
+# def add_student():
+#     try:
+#         insert_result = create_new_student(
+#             student_collection=db['student'],
+#             student_info=request.get_json()
+#         )
+#     except ValueError as ve:
+#         return jsonify({"error": str(ve)}), 400
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
-    if insert_result.acknowledged:
-        return jsonify({
-            "message": "Student added successfully",
-            "student_id": str(insert_result.inserted_id)
-        }), 201
-    else:
-        return jsonify({"message": "Nepavyko pridėti studento"}), 400
+#     if insert_result.acknowledged:
+#         return jsonify({
+#             "message": "Student added successfully",
+#             "student_id": str(insert_result.inserted_id)
+#         }), 201
+#     else:
+#         return jsonify({"message": "Nepavyko pridėti studento"}), 400
 
-@app.route("/student/<string:student_id>", methods=["GET"])
-def api_get_student(student_id):
-    """API endpointas gauti vieną studentą pagal ID."""
-    student = get_student_by_id(db["student"], student_id)
-    if not student:
-        return jsonify({"error": "Studentas nerastas"}), 404
-    return jsonify(student), 200
+# @app.route("/student/<string:student_id>", methods=["GET"])
+# def api_get_student(student_id):
+#     """API endpointas gauti vieną studentą pagal ID."""
+#     student = get_student_by_id(db["student"], student_id)
+#     if not student:
+#         return jsonify({"error": "Studentas nerastas"}), 404
+#     return jsonify(student), 200
 
-@app.route("/students", methods=["GET"])
-def api_get_students():
-    """API endpointas gauti visus studentus arba ieškoti pagal vardą/pavardę."""
-    name = request.args.get("name")
-    if name:
-        return jsonify(get_students_by_name(db["student"], name)), 200
-    return jsonify(get_all_students(db["student"])), 200
+# @app.route("/students", methods=["GET"])
+# def api_get_students():
+#     """API endpointas gauti visus studentus arba ieškoti pagal vardą/pavardę."""
+#     name = request.args.get("name")
+#     if name:
+#         return jsonify(get_students_by_name(db["student"], name)), 200
+#     return jsonify(get_all_students(db["student"])), 200
 
-@app.route("/student/<student_id>", methods=["DELETE"])
-def remove_student(student_id: str):
-    try:
-        result = delete_student(db["student"], db["tutor"], student_id)
-        if result["deleted"]:
-            return jsonify({"server_response": "Studentas ištrintas ir pašalintas iš korepetitorių"}), 200
-        else:
-            return jsonify({"server_response": "Studentas nerastas"}), 404
-    except Exception as e:
-        return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
+# @app.route("/student/<student_id>", methods=["DELETE"])
+# def remove_student(student_id: str):
+#     try:
+#         result = delete_student(db["student"], db["tutor"], student_id)
+#         if result["deleted"]:
+#             return jsonify({"server_response": "Studentas ištrintas ir pašalintas iš korepetitorių"}), 200
+#         else:
+#             return jsonify({"server_response": "Studentas nerastas"}), 404
+#     except Exception as e:
+#         return jsonify({"server_response": f"Serverio klaida: {e}"}), 500
 
 
 
