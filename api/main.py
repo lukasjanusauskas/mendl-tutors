@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request
 from bson.errors import InvalidId
 from connection import get_db
+import traceback
+
 from tutor import (
     create_new_tutor,
     get_all_tutors,
@@ -28,7 +30,9 @@ from lesson import (
     list_lessons_tutor_month,
     list_lessons_student_week,
     list_lesson_student_month,
-    change_lesson_info_for_student
+    delete_student_from_lesson,
+    change_lesson_price_student,
+    change_lesson_time_student
 )
 
 db = get_db()
@@ -389,17 +393,16 @@ def list_all_lessons_month_student(student_id: str, year: int, month: int):
         return jsonify({'server_response': 'nepavyko'}), 400
 
 
-@app.route("/lesson/change_info", methods=["POST"])
-def change_lesson_information():
+@app.route("/lesson/<lesson_id>/student/<student_id>/change_price/<float:price>", methods=["POST"])
+def change_lesson_information_price(lesson_id: str, student_id: str, price: float):
     try:
-        update_result = create_new_tutor(
-            lesson_collection=db['lesson'],
-            tutor_collection=db['tutor'],
-            tutor_info=request.get_json()
+        update_result = change_lesson_price_student(
+            db['lesson'],
+            lesson_id=lesson_id,
+            student_id=student_id,
+            price=price
         )
     except ValueError as err:
-        return jsonify({'server_response': f'{err}'}), 400
-    except KeyError as err:
         return jsonify({'server_response': f'{err}'}), 400
     except Exception as err:
         return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
@@ -418,6 +421,44 @@ def change_lesson_information():
 
         return output, 400
 
+
+@app.route("/lesson/remove_student/<lesson_id>/<student_id>", methods=["DELETE"])
+def remove_student_from_lesson(lesson_id: str, student_id: str):
+    update_result = delete_student_from_lesson(
+        db['lesson'], db['student'], lesson_id, student_id
+    )
+
+    if update_result is not None:
+        output = jsonify({'server_response': 'Pavyko padaryti pakeitima'})
+        return output, 200
+    
+    else:
+        output = jsonify({'server_response': 'nepavyko'})
+        return output, 400
+
+
+@app.route("/lesson/change_time_student", methods=["POST"])
+def change_student_lesson_time():
+    try:
+        update_result = change_lesson_time_student(
+            db['lesson'], db['tutor'], db['student'],
+            lesson_info=request.get_json()
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except KeyError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except Exception as err:
+        traceback.print_exc()
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+    if update_result:
+        output = jsonify({'server_response': 'pavyko',})
+        return output, 200
+
+    else:
+        output = jsonify({'server_response': 'nepavyko'})
+        return output, 400
 
 if __name__ == '__main__':
 
