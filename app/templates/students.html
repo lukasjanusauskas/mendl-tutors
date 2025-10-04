@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Studentai - MENDL{% endblock %}
+
+{% block content %}
+<h1>Visi studentai</h1>
+
+{% if error %}
+    <div>
+        <p>Klaida: {{ error }}</p>
+    </div>
+{% elif students %}
+    <div>
+        <p>Rasta tiek studentų: {{ students|length }}.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Vardas</th>
+                    <th>Pavardė</th>
+                    <th>Klasė</th>
+                    <th>Gimimo data</th>
+                    <th>Dalykai</th>
+                    <th>Tėvų telefonai</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td>{{ student.first_name }}</td>
+                    <td>{{ student.last_name }}</td>
+                    <td>{{ student.class }}</td>
+                    <td>{{ student.date_of_birth }}</td>
+                    <td>
+                        {% if student.subjects %}
+                            {% for subject in student.subjects %}
+                                <span>{{ subject }}</span>
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if student.parents_phone_numbers %}
+                            {% for phone in student.parents_phone_numbers %}
+                                <div>{{ phone }}</div>
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p>Studentų nerasta.</p>
+{% endif %}
+
+{% endblock %}
