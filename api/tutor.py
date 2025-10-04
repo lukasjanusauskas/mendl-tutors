@@ -20,7 +20,7 @@ from pymongo.results import (
 from connection import get_db
 import re
 from bson import ObjectId
-from datetime import datetime, timedelta
+
 
 
 def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
@@ -187,6 +187,39 @@ def get_tutors_by_name(tutor_collection, name: str):
     tutors = tutor_collection.find({"full_name": {"$regex": regex}})
     return [serialize_doc(t) for t in tutors]
 
+def find_tutors_by_subject_and_class(tutor_collection, subject, student_class):
+    """
+    Suranda korepetitorius pagal konkretų dalyką ir klasę.
+    Grąžina sąrašą su pagrindine informacija apie korepetitorius.
+    """
+
+    # Naudojame $elemMatch, kad ieškotume dalyko masyvo viduje
+    query = {
+        "subjects": {
+            "$elemMatch": {
+                "subject": subject,
+                "max_class": {"$gte": student_class}
+            }
+        }
+    }
+
+    # Nurodome, kokius laukus norime gauti:
+    # _id paliekame, bet nerodome slaptažodžių ar kitų jautrių duomenų
+    projection = {
+        "_id": 1,
+        "first_name": 1,
+        "second_name": 1,
+        "last_name": 1,
+        "email": 1,
+        "phone_number": 1,
+        "subjects": 1,
+        "rating": 1,
+        "number_of_lessons": 1
+    }
+
+    # Vykdome užklausą ir paverčiame rezultatus į sąrašą
+    tutors = list(tutor_collection.find(query, projection))
+    return tutors
 
 def delete_tutor(tutor_collection, tutor_id: str) -> DeleteResult:
     """

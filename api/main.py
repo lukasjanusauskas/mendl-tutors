@@ -1,5 +1,7 @@
 from flask import Flask, jsonify, request
 from bson.errors import InvalidId
+
+
 from connection import get_db
 import traceback
 
@@ -11,8 +13,8 @@ from tutor import (
     assign_student_to_tutor,
     get_tutor_students,
     delete_tutor,
-    remove_student_from_tutor
-    #get_tutor_pagal_dal_ir_kalse
+    remove_student_from_tutor,
+    find_tutors_by_subject_and_class
 )
 from student import (
     create_new_student,
@@ -147,6 +149,35 @@ def api_get_tutors():
     if name:
         return jsonify(get_tutors_by_name(db["tutor"], name)), 200
     return jsonify(get_all_tutors(db["tutor"])), 200
+
+@app.route("/tutors/search", methods=["GET"])
+def search_tutors():
+    """
+    Endpoint'as, leidžiantis ieškoti korepetitorių pagal dalyką ir klasę.
+    Pavyzdys:
+        /tutors/search?subject=MAT&class=10
+    """
+    try:
+        # Iš URL parametrų gauname dalyką ir klasę
+        subject = request.args.get("subject")
+        student_class = request.args.get("class", type=int)
+
+        # Patikriname, ar abu parametrai pateikti
+        if not subject or student_class is None:
+            return jsonify({"error": "Reikalingi parametrai 'subject' ir 'class'"}), 400
+
+        # Iškviečiame funkciją iš tutor.py
+        tutors = find_tutors_by_subject_and_class(db['tutor'], subject, student_class)
+
+        # Konvertuojame ObjectId į tekstą, kad JSON galėtų jį grąžinti
+        for t in tutors:
+            t["_id"] = str(t["_id"])
+
+        return jsonify(tutors), 200
+
+    except Exception as e:
+        # Klaidos atveju grąžiname pranešimą su klaidos tekstu
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/tutor/<tutor_id>", methods=["DELETE"])
 def remove_tutor(tutor_id: str):
@@ -466,7 +497,7 @@ def change_student_lesson_time():
         output = jsonify({'server_response': 'nepavyko'})
         return output, 400
 
-#-------------------LESSON API--------------------------
+#-------------------REVIEW API--------------------------
 
 @app.route('/review/tutor', methods = ['POST'])
 def add_review_tutor():
