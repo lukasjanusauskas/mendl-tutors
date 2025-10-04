@@ -46,7 +46,7 @@ if __name__ == "__main__":
         "review": review_schema_validation
     }
 
-    collections_to_drop = ['lesson']
+    collections_to_drop = ['review']
     drop_selected_collections(db, collections_to_drop)
     print("Collections after deletion", db.list_collection_names())
 

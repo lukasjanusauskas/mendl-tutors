@@ -1,16 +1,9 @@
 from utils import (
-    serialize_doc,
-    parse_date_of_birth,
     parse_time_of_lesson,
     generate_lesson_id_link
 )
 from connection import get_db
-from pymongo.results import (
-    InsertOneResult,
-    UpdateResult,
-    DeleteResult
-)
-import re
+from pymongo.results import InsertOneResult
 from bson import ObjectId
 from datetime import timedelta, datetime
 
@@ -244,6 +237,7 @@ def list_lessons_tutor_week(
         ]
 
         lessons.append({
+            '_id': str(lesson_doc['_id']),
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
             'students': students,
             'link': lesson_doc['link']
@@ -288,6 +282,7 @@ def list_lessons_tutor_month(
         ]
 
         lessons.append({
+            '_id': str(lesson_doc['_id']),
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
             'students': students,
             'link': lesson_doc['link']
@@ -333,6 +328,7 @@ def list_lessons_student_week(
         ]
 
         lessons.append({
+            '_id': str(lesson_doc['_id']),
             'tutor_first_name': lesson_doc['tutor']['first_name'],
             'tutor_last_name': lesson_doc['tutor']['last_name'],
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
@@ -379,6 +375,7 @@ def list_lesson_student_month(
         ]
 
         lessons.append({
+            '_id': str(lesson_doc['_id']),
             'tutor_first_name': lesson_doc['tutor']['first_name'],
             'tutor_last_name': lesson_doc['tutor']['last_name'],
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
@@ -549,7 +546,6 @@ def change_lesson_time_student(
             student_collection,
             lesson_info_creation
         )
-
 
 
 if __name__ == "__main__":

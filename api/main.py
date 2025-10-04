@@ -34,6 +34,12 @@ from lesson import (
     change_lesson_price_student,
     change_lesson_time_student
 )
+from reviews import (
+    create_review,
+    revoke_review,
+    list_reviews_tutor,
+    list_reviews_student
+)
 
 db = get_db()
 app = Flask(__name__)
@@ -459,6 +465,159 @@ def change_student_lesson_time():
     else:
         output = jsonify({'server_response': 'nepavyko'})
         return output, 400
+
+#-------------------LESSON API--------------------------
+
+@app.route('/review/tutor', methods = ['POST'])
+def add_review_tutor():
+    """ Leave a review for a student. Tutor - reviews > student. """
+    try:
+        review_info = request.get_json() | {'for_tutor': False}
+
+        insert_result = create_review(
+            review_collection=db['review'],
+            tutor_collection=db['tutor'],
+            student_collection=db['student'],
+            review_info=review_info
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except KeyError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except Exception as err:
+        traceback.print_exc()
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+    if insert_result.acknowledged:
+        output = jsonify({
+            'server_response': 'pavyko',
+            'lesson_id': str( insert_result.inserted_id )
+        })
+
+        return output, 200
+
+    else:
+        output = jsonify({'server_response': 'nepavyko'})
+
+        return output, 400
+
+
+@app.route('/review/student', methods = ['POST'])
+def add_review_student():
+    """ Leave a review for a tutor. Student (parents) - reviews > tutor. """
+    try:
+        review_info = request.get_json() | {'for_tutor': True}
+
+        insert_result = create_review(
+            review_collection=db['review'],
+            tutor_collection=db['tutor'],
+            student_collection=db['student'],
+            review_info=review_info
+        )
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except KeyError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except Exception as err:
+        traceback.print_exc()
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+    if insert_result.acknowledged:
+        output = jsonify({
+            'server_response': 'pavyko',
+            'lesson_id': str( insert_result.inserted_id )
+        })
+
+        return output, 200
+
+    else:
+        output = jsonify({'server_response': 'nepavyko'})
+
+        return output, 400
+
+
+@app.route('/review/<review_id>', methods = ['DELETE'])
+def remove_review(review_id: str):
+    try: 
+        revoked_review = revoke_review(db['review'], review_id)
+    except ValueError as err:
+        return jsonify({'server_response': f'{err}'}), 400
+    except Exception as err:
+        traceback.print_exc()
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+    if revoked_review:
+        output = jsonify({'server_response': 'pavyko'})
+        return output, 200
+
+    else:
+        output = jsonify({'server_response': 'nepavyko'})
+        return output, 400
+
+
+@app.route('/review/tutor/<tutor_id>', methods = ['GET'])
+def list_reviews_for_tutor(tutor_id: str):
+    try: 
+        reviews = list_reviews_tutor(
+            db['review'], tutor_id, filter_revoked=True
+        )
+
+    except Exception as err:
+        traceback.print_exc()
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+        
+    output = jsonify({'reviews': reviews})
+    return output, 200
+
+
+@app.route('/review/student/<student_id>', methods = ['GET'])
+def list_reviews_for_student(student_id: str):
+    try: 
+        reviews = list_reviews_student(
+            db['review'], student_id, filter_revoked=True
+        )
+
+    except Exception as err:
+        traceback.print_exc()
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+        
+    output = jsonify({'reviews': reviews})
+    return output, 200
+
+
+@app.route('/review/tutor/all/<tutor_id>', methods = ['GET'])
+def list_reviews_for_tutor_all(tutor_id: str):
+    try: 
+        reviews = list_reviews_tutor(
+            db['review'], tutor_id, filter_revoked=False
+        )
+
+    except Exception as err:
+        traceback.print_exc()
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+        
+    output = jsonify({'reviews': reviews})
+    return output, 200
+
+
+@app.route('/review/student/all/<student_id>', methods = ['GET'])
+def list_reviews_for_student_all(student_id: str):
+    try: 
+        reviews = list_reviews_student(
+            db['review'], student_id, filter_revoked=False
+        )
+
+    except Exception as err:
+        traceback.print_exc()
+        return jsonify({'server_response': f'Serverio klaida: {err}'}), 500
+
+        
+    output = jsonify({'reviews': reviews})
+    return output, 200
+
 
 if __name__ == '__main__':
 

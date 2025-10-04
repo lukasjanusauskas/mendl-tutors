@@ -291,14 +291,36 @@ review_schema_validation = {
                 'description': "Review date"
             },
             'tutor': {
-                'bsonType': 'string',
-                'minLength': 1,
+                'bsonType': 'object',
+                'required': ['tutor_id', 'first_name', 'last_name'],
+                'properties': {
+                    'tutor_id': {'bsonType': 'objectId'},
+                    'first_name': {
+                        'bsonType': 'string',
+                        'minLength': 1,
+                    },
+                    'last_name': {
+                        'bsonType': 'string',
+                        'minLength': 1,
+                    }
+                },
                 'description': "Tutor's full name"
             },
             'student': {
-                'bsonType': 'string',
-                'minLength': 1,
-                'description': "Student's full name"
+                'bsonType': 'object',
+                'required': ['student_id', 'first_name', 'last_name'],
+                'properties': {
+                    'student_id': {'bsonType': 'objectId'},
+                    'first_name': {
+                        'bsonType': 'string',
+                        'minLength': 1,
+                    },
+                    'last_name': {
+                        'bsonType': 'string',
+                        'minLength': 1,
+                    }
+                },
+                'description': "Tutor's full name"
             },
             'review_text': {
                 'bsonType': 'string',
