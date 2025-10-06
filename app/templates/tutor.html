@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Peržiūra: {{ tutor.first_name }} {{ tutor.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    {% if tutor %}
+        <h1 class="mb-4">{{ tutor.first_name }} {{ tutor.second_name or "" }} {{ tutor.last_name }}</h1>
+        <p><strong>Email:</strong> {{ tutor.email }}</p>
+        <p><strong>Telefonas:</strong> {{ tutor.phone_number or "-" }}</p>
+        <p><strong>Dalykai:</strong>
+            {% if tutor.subjects %}
+                <ul>
+                    {% for s in tutor.subjects %}
+                        <li>{{ s.subject }} (max klasė: {{ s.max_class }})</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                -
+            {% endif %}
+        </p>
+
+        <h3 class="mt-4">Studentai</h3>
+        {% if students %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Vardas</th>
+                            <th>Pavardė</th>
+                            <th>Klasė</th>
+                            <th>Dalykas</th>
+                            <th>Tėvų telefonai</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td>{{ student.first_name }}</td>
+                            <td>{{ student.last_name }}</td>
+                            <td>{{ student.student_class or "-" }}</td>
+                            <td>{{ student.subject }}</td>
+                            <td>
+                                {% if student.parents_phone_numbers %}
+                                    {{ student.parents_phone_numbers | join(", ") }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">Studentų nėra.</p>
+        {% endif %}
+
+    {% else %}
+        <p class="text-muted">Korepetitorius nerastas.</p>
+    {% endif %}
+</div>
+{% endblock %}

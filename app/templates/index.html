@@ -1,10 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Pagrindinis puslapis - MENDL{% endblock %}
+{% block title %}Pagrindinis puslapis{% endblock %}
 
 {% block content %}
-<h1>Hello World!</h1>
-<p>MENDL puslapis.</p>
+<div class="container text-center mt-5">
+    <h1 class="mb-4">Sveiki atvykę į Korepetitorių valdymo sistemą!</h1>
+    <p class="lead mb-5">
+        Čia galite tvarkyti korepetitorius ir studentus, peržiūrėti jų informaciją bei atlikti pagrindines CRUD operacijas.
+    </p>
 
-</ul>
+    <div class="d-flex justify-content-center gap-3">
+        <a href="{{ url_for('tutors') }}" class="btn btn-primary btn-lg">
+            👨‍🏫 Korepetitoriai
+        </a>
+        <a href="{{ url_for('students') }}" class="btn btn-success btn-lg">
+            🎓 Studentai
+        </a>
+    </div>
+</div>
 {% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Pridėti naują korepetitorių</h1>
+
+<form method="POST">
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Vardas</label>
+        <input type="text" class="form-control" name="first_name" required>
+    </div>
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Antras vardas (nebūtinas)</label>
+        <input type="text" class="form-control" name="second_name">
+    </div>
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Pavardė</label>
+        <input type="text" class="form-control" name="last_name" required>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Gimimo data</label>
+        <input type="date" class="form-control" name="date_of_birth" required>
+    </div>
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" name="email" required>
+    </div>
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Slaptažodis</label>
+        <input type="password" class="form-control" name="password" required>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Telefonas (nebūtinas)</label>
+        <input type="text" class="form-control" name="phone_number">
+    </div>
+    <div class="col-md-6 mb-3">
+        <label class="form-label">Dalykai (atskirkite kableliais)</label>
+        <input type="text" class="form-control" name="subjects" placeholder="Matematika, Fizika">
+    </div>
+</div>
+
+<button type="submit" class="btn btn-primary">Pridėti</button>
+<a href="{{ url_for('tutors') }}" class="btn btn-secondary">Atgal</a>
+</form>
+{% endblock %}
