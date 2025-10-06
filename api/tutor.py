@@ -41,7 +41,7 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
         tutor[field] = tutor_info[field]
 
     # 2️⃣ Tikriname papildomus laukus
-    optional_parameters = ['phone_number']
+    optional_parameters = ['phone_number', 'second_name']
     for field in optional_parameters:
         if field in tutor_info:
             tutor[field] = tutor_info[field]
@@ -181,10 +181,16 @@ def get_all_tutors(tutor_collection):
     tutors = tutor_collection.find()
     return [serialize_doc(t) for t in tutors]
 
-def get_tutors_by_name(tutor_collection, name: str):
-    """Ieško korepetitorių pagal vardą arba pavardę (case-insensitive)."""
-    regex = re.compile(name, re.IGNORECASE)
-    tutors = tutor_collection.find({"full_name": {"$regex": regex}})
+def get_tutors_by_name(tutor_collection, first_name: str, last_name: str):
+    """
+    Ieško korepetitorių pagal vardą ir pavardę (case-insensitive).
+    """
+    query = {
+        "first_name": re.compile(first_name, re.IGNORECASE),
+        "last_name": re.compile(last_name, re.IGNORECASE)
+    }
+
+    tutors = tutor_collection.find(query)
     return [serialize_doc(t) for t in tutors]
 
 def find_tutors_by_subject_and_class(tutor_collection, subject, student_class):
@@ -221,11 +227,13 @@ def find_tutors_by_subject_and_class(tutor_collection, subject, student_class):
     tutors = list(tutor_collection.find(query, projection))
     return tutors
 
-def delete_tutor(tutor_collection, tutor_id: str) -> DeleteResult:
+def delete_tutor(tutor_collection, tutor_id: str) -> dict:
     """
     Ištrina korepetitorių iš DB pagal _id.
+    Grazina dict su info apie delete.
     """
-    return tutor_collection.delete_one({"_id": ObjectId(tutor_id)})
+    result = tutor_collection.delete_one({"_id": ObjectId(tutor_id)})
+    return {"deleted": result.deleted_count == 1}
 
 def remove_student_from_tutor(
     tutor_collection,

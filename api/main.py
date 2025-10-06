@@ -144,10 +144,19 @@ def api_get_tutor(tutor_id):
 
 @app.route("/tutors", methods=["GET"])
 def api_get_tutors():
-    """API endpointas gauti visus korepetitorius arba ieškoti pagal vardą/pavardę."""
-    name = request.args.get("name")
-    if name:
-        return jsonify(get_tutors_by_name(db["tutor"], name)), 200
+    """
+    API endpointas gauti visus korepetitorius arba ieškoti pagal vardą ir pavardę.
+    Parametrai per query string:
+        ?first_name=Jonas&last_name=Kazlauskas
+    """
+    first_name = request.args.get("first_name")
+    last_name = request.args.get("last_name")
+
+    if first_name and last_name:
+        tutors = get_tutors_by_name(db["tutor"], first_name, last_name)
+        return jsonify(tutors), 200
+
+    # Jei nenurodyti abu parametrai, gražiname visus
     return jsonify(get_all_tutors(db["tutor"])), 200
 
 @app.route("/tutors/search", methods=["GET"])

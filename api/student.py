@@ -41,7 +41,7 @@ def create_new_student(
         student[field] = student_info[field]
 
     # 2️⃣ Tikriname papildomus laukus
-    optional_arguments = ['phone_number', 'student_email', 'parents_email']
+    optional_arguments = ['phone_number', 'student_email', 'parents_email','middle_name']
     for field in optional_arguments:
         if field in student_info:
             student[field] = student_info[field]
@@ -108,7 +108,7 @@ def delete_student(student_collection, tutor_collection, student_id: str) -> dic
         # ištrinam studentą iš visų tutor.students_subjects
         tutor_collection.update_many(
             {},
-            {"$pull": {"students_subjects": {"student_id": student_id}}}
+            {"$pull": {"students_subjects": {"student.student_id": student_id}}}
         )
         return {"deleted": True}
     else:
