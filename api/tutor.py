@@ -6,7 +6,7 @@ Tutor can be:
 - update fields (email)
 """
 
-from utils import (
+from .utils import (
     serialize_doc,
     parse_date_of_birth
 )
@@ -17,7 +17,7 @@ from pymongo.results import (
     DeleteResult
 )
 
-from connection import get_db
+from .connection import get_db
 import re
 from bson import ObjectId
 
@@ -96,7 +96,7 @@ def assign_student_to_tutor(
     subject: str
 ) -> UpdateResult:
     """
-    Priskirti studenta prie korepetitoriaus pagal email ir subject.
+    Priskirti studenta prie korepetitoriaus pagal subject.
     Grazina UpdateResult su informacija apie update.
     """
 
@@ -108,7 +108,7 @@ def assign_student_to_tutor(
     # 2️⃣ Patikrinti ar egzistuoja korepetitorius pagal id
     tutor = tutor_collection.find_one({"_id": ObjectId(tutor_id)})
     if not tutor:
-        raise ValueError("Korepetitorius su tokiu email nerastas")
+        raise ValueError("Korepetitorius su tokiu ID nerastas")
 
     # 3️⃣ Patikrinti ar korepetitorius moko tokio subject
     tutor_subjects = [s.get("subject") for s in tutor.get("subjects", [])]
@@ -123,16 +123,25 @@ def assign_student_to_tutor(
     if already_assigned:
         raise ValueError("Studentas jau priskirtas prie sio dalyko")
 
-    # 5️⃣ Sukurti įrašą studentui
+    # 5️⃣ Sukurti įrašą studentui su class
     student_entry = {
         "student": {
             "student_id": str(student["_id"]),
             "first_name": student["first_name"],
             "last_name": student["last_name"],
-            "parents_phone_numbers": student['parents_phone_numbers']
+            "parents_phone_numbers": student.get('parents_phone_numbers', []),
+            "student_class": student.get("class")
         },
         "subject": subject
     }
+
+    # 6️⃣ Pridėti prie tutor.students_subjects
+    update_result = tutor_collection.update_one(
+        {"_id": ObjectId(tutor_id)},
+        {"$push": {"students_subjects": student_entry}}
+    )
+
+    return update_result
 
     # 6️⃣ Pridėti prie tutor.students_subjects
     update_result = tutor_collection.update_one(
@@ -144,15 +153,14 @@ def assign_student_to_tutor(
 
     return update_result
 
-def get_tutor_students(
-    tutor_collection,
-    student_collection,
-    tutor_id: str
-) -> list[dict]:
-    """
-    Grazina visus tutor studentus su vardais ir subjectais.
-    """
+from bson import ObjectId
 
+def get_tutor_students(tutor_collection, tutor_id: str) -> list[dict]:
+    """
+    Grazina visus tutor studentus su vardais, klase ir subjectais.
+    Dirba tik su nauju students_subjects formatu ir nenaudoja student kolekcijos.
+    """
+    # 1️⃣ Paimame korepetitoriu pagal ID
     tutor = tutor_collection.find_one({"_id": ObjectId(tutor_id)})
     if not tutor:
         raise ValueError("Korepetitorius nerastas")
@@ -161,13 +169,20 @@ def get_tutor_students(
     results = []
 
     for entry in students_subjects:
-        student = student_collection.find_one({"_id": ObjectId(entry["student_id"])})
-        if student:
-            results.append({
-                "student_id": ObjectId(entry["student_id"]),
-                "full_name": student.get("full_name", "Nezinomas"),
-                "subject": entry["subject"]
-            })
+        # 2️⃣ Tikriname, ar entry turi 'student' ir 'student_id'
+        student_info = entry.get("student")
+        if not student_info or "student_id" not in student_info:
+            continue  # jei ne, praleidziame
+
+        # 3️⃣ Gauname reikiamus duomenis tiesiai is tutor.students_subjects
+        results.append({
+            "student_id": student_info["student_id"],
+            "first_name": student_info.get("first_name", ""),
+            "last_name": student_info.get("last_name", ""),
+            "student_class": student_info.get("student_class"),  # добавлено
+            "subject": entry.get("subject", "-"),
+            "parents_phone_numbers": student_info.get("parents_phone_numbers", [])
+        })
 
     return results
 
@@ -244,29 +259,30 @@ def remove_student_from_tutor(
     Pašalina studentą iš konkretaus korepetitoriaus students_subjects pagal student_id.
     """
 
-    # Patikrinti ar yra tutor_id
+    # Patikrinti ar egzistuoja tutor
     tutor = tutor_collection.find_one({'_id': ObjectId(tutor_id)})
-
     if not tutor:
         raise ValueError('Tokio korepetitoriaus nera')
 
-    # Patikrinti ar yra student_id
-
-    for student, _ in tutor['subjects_students']:
-        if student_id == str(student['student_id']):
+    # Patikrinti ar studentas priklauso tutor
+    students_subjects = tutor.get('students_subjects', [])
+    for entry in students_subjects:
+        if entry['student']['student_id'] == str(student_id):
             break
     else:
         raise ValueError('Tokio mokinio korepetitorius neturi')
 
+    # Ištrinti studentą iš students_subjects
     result: UpdateResult = tutor_collection.update_one(
         {"_id": ObjectId(tutor_id)},
-        {"$pull": {"students_subjects": {"student_id": ObjectId(student_id)}}}
+        {"$pull": {"students_subjects": {"student.student_id": str(student_id)}}}
     )
 
     if result.modified_count == 1:
         return {"removed": True}
     else:
         return {"removed": False}
+
 
 if __name__ == "__main__":
     db = get_db()
