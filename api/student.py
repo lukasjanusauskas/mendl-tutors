@@ -41,7 +41,7 @@ def create_new_student(
         student[field] = student_info[field]
 
     # 2️⃣ Tikriname papildomus laukus
-    optional_arguments = ['phone_number', 'student_email', 'parents_email','middle_name']
+    optional_arguments = ['phone_number', 'student_email', 'parents_email','second_name']
     for field in optional_arguments:
         if field in student_info:
             student[field] = student_info[field]
