@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
-
+import re
 
 from api.tutor import (
     get_tutor_by_id,
@@ -13,7 +13,8 @@ from api.tutor import (
     get_tutors_by_name
 )
 from api.student import (
-    get_students_tutors
+    get_students_tutors,
+    create_new_student
 )
 from api.reviews import (
     create_review
@@ -40,9 +41,6 @@ def students():
         return render_template('students.html', students=students_list)
     except Exception as e:
         return render_template('students.html', students=[], error=str(e))
-
-from api.student import create_new_student
-import re
 
 @app.route('/sign-up-student', methods=['GET', 'POST'])
 def sign_up_student():
@@ -116,13 +114,46 @@ def sign_up_student():
     # GET request
     return render_template('sign_up_student.html')
 
-@app.route('/sign-up-tutor')
+
+
+@app.route('/sign-up-tutor', methods=['GET', 'POST'])
 def sign_up_tutor():
-    try:
- 
-        return render_template('sign_up_tutor.html')
-    except Exception as e:
-        return render_template('sign_up_tutor.html', error=str(e))
+    if request.method == 'POST':
+        try:
+            tutor_info = {
+                "first_name": request.form['first_name'],
+                "last_name": request.form['last_name'],
+                "date_of_birth": request.form['date_of_birth'],
+                "email": request.form['email'],
+                "password": request.form['password'],
+                "subjects": []
+            }
+
+            # Neprivalomi laukai
+            second_name = request.form.get('second_name')
+            if second_name:
+                tutor_info['second_name'] = second_name
+
+            phone = request.form.get('phone_number')
+            if phone:
+                tutor_info['phone_number'] = phone
+
+            # Subjects apdorojimas - konvertuojame į objektų masyvą
+            subjects_raw = request.form.get('subjects', "")
+            if subjects_raw:
+                subjects_list = [s.strip() for s in subjects_raw.split(",") if s.strip()]
+                tutor_info['subjects'] = [{"subject": s, "max_class": 12} for s in subjects_list]
+            else:
+                raise ValueError("Būtina nurodyti bent vieną dėstomą dalyką")
+
+            create_new_tutor(db.tutor, tutor_info)
+            flash("Korepetitorius sėkmingai užregistruotas!", "success")
+            return redirect(url_for("tutors"))
+        except Exception as e:
+            return render_template('sign_up_tutor.html', error=str(e))
+    
+    # GET request
+    return render_template('sign_up_tutor.html')
 
 @app.route('/login')
 def login():
@@ -130,9 +161,6 @@ def login():
         return render_template('login.html')
     except Exception as e:
         return render_template('login.html', error=str(e))
-
-
-from api.tutor import get_tutors_by_name
 
 @app.route("/tutors", methods=["GET"])
 def tutors():
