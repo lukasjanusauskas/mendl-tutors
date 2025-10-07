@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Parašyti atsiliepimą studentui{% endblock %}
+
+{% block content %}
+
+<div class="container" style="width: fit-content;">
+    <h3>Parašyti atsiliepimą studentui</h3>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('add_new_review_student', student_id=student_id) }}">
+        <div class="form-group" class="ps-2">
+            <label for="tutor_id" class="row ps-4">Pasirinkite korepetitorių:</label>
+            <select name="tutor_id" id="tutor_id" required class="form-control ps-2">
+                <option value="" >-- Pasirinkite mokytoją --</option>
+                {% for id, name in tutors.items() %}
+                    <option value="{{ id }}" class="dropdown-item">{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group col ps-4 my-2">
+            <label for="review_text" class="row">Atsiliepimas:</label>
+            <textarea id="review_text" class="row w-100" name="review_text" cols="75" rows="10" required placeholder="Įveskite atsiliepimą apie studento darbą, pažangą, stipriąsias puses ir tobulintinas sritis..."></textarea>
+        </div>
+        
+        <button type="submit" class="w-100 btn btn-primary m-auto">Pateikti atsiliepimą</button>
+    </form>
+</div>
+
+{% endblock %}

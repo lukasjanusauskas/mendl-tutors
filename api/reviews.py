@@ -1,6 +1,6 @@
 from pymongo.results import InsertOneResult
 from bson import ObjectId
-from utils import serialize_doc
+from api.utils import serialize_doc
 from datetime import timedelta, datetime
 
 
@@ -23,7 +23,8 @@ def create_review(
 
     optional_arguments = ['rating']
     for field in optional_arguments:
-        review[field] = review_info[field]
+        if field in review:
+            review[field] = review_info[field]
 
     # Patikrinti, ar tutor egiztuoja
     tutor = tutor_collection.find_one({'_id': ObjectId( review_info['tutor_id'] )})

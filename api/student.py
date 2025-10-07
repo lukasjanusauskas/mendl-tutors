@@ -1,8 +1,8 @@
-from utils import (
+from api.utils import (
     serialize_doc,
     parse_date_of_birth
 )
-from connection import get_db
+from api.connection import get_db
 from pymongo.results import (
     InsertOneResult,
     UpdateResult,
@@ -114,6 +114,28 @@ def delete_student(student_collection, tutor_collection, student_id: str) -> dic
     else:
         return {"deleted": False}
 
+
+def get_students_tutors(
+    tutor_collection,
+    student_id: str
+):
+    # Run a query to take all tutors with this student
+    query_res = tutor_collection.find({
+        "students_subjects.student.student_id": student_id
+    })
+
+    tutors = []
+    for tutor_doc in query_res:
+        tutors.append(tutor_doc)
+
+    assert len(tutors) > 0, "Mokinys neturi priskirtų mokinių"
+
+    return tutors
+
+
 if __name__ == "__main__":
     db = get_db()
     student_collection = db['student']
+    tutor_collection = db['tutor']
+
+    print( get_students_tutors(tutor_collection, "68dfe5e166fb223bfcdd8807") )

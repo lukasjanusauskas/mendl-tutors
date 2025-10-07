@@ -12,6 +12,12 @@ from api.tutor import (
     create_new_tutor,
     get_tutors_by_name
 )
+from api.student import (
+    get_students_tutors
+)
+from api.reviews import (
+    create_review
+)
 
 load_dotenv()
 
@@ -124,6 +130,81 @@ def add_tutor():
             flash(str(e), "danger")
 
     return render_template("add_tutor.html")
+
+@app.route('/tutor/<tutor_id>/create_review', methods=['GET', 'POST'])
+def add_new_review_tutor(tutor_id):
+    # Gauti mokinius is duombzes 
+    students = get_tutor_students(db['tutor'], tutor_id)
+
+    students = {stud['student_id']: f"{stud['first_name']} {stud['last_name']}"
+                for stud in students}
+
+    # Jei nera mokiniui -> flashcard
+    if not students:
+        flash('Jūs neturite mokinių', 'warning')
+        return redirect("/")
+
+    if request.method == 'POST':
+        student_id = request.form.get('student_id')
+        review_text = request.form.get('review_text')
+
+        # Išsaugoti atsiliepimą duomenų bazėje
+        create_review(
+            db['review'], db['tutor'], db['student'],
+            review_info={
+                'tutor_id': tutor_id,
+                'student_id': student_id,
+                'for_tutor': False,
+                'review_text': review_text
+            }
+        )
+
+        flash('Atsiliepimas sėkmingai pateiktas!', 'success')
+        return redirect(url_for('view_tutor', tutor_id=tutor_id))
+    
+    return render_template('review_tutor.html', students=students, tutor_id=tutor_id)
+
+
+@app.route('/student/<student_id>/create_review', methods=['GET', 'POST'])
+def add_new_review_student(student_id):
+    # Gauti mokinius is duombzes 
+
+    try:
+        tutors = get_students_tutors(db['tutor'], student_id)
+    except AssertionError:
+        flash('Jūs neturite priskirtų mokytojų', 'warning')
+        return redirect("/")
+
+    tutors = {tut['_id']: f"{tut['first_name']} {tut['last_name']}"
+                for tut in tutors}
+
+    # Jei nera mokytoju -> flashcard
+    if not students:
+        flash('Jūs neturite priskirtų mokytojų', 'warning')
+        return redirect(url_for('view_tutor', tutor_id=tutor_id))
+
+    if request.method == 'POST':
+        tutor_id = request.form.get('tutor_id')
+        review_text = request.form.get('review_text')
+
+        # Išsaugoti atsiliepimą duomenų bazėje
+        create_review(
+            db['review'], db['tutor'], db['student'],
+            review_info={
+                'tutor_id': tutor_id,
+                'student_id': student_id,
+                'for_tutor': True,
+                'review_text': review_text
+            }
+        )
+
+        flash('Atsiliepimas sėkmingai pateiktas!', 'success')
+        return redirect("/")
+    
+    return render_template('review_student.html', tutors=tutors, student_id=student_id)
+# Revoke reviews
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
