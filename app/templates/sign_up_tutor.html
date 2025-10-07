@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Registracija{% endblock %}
+
+{% block content %}
+<h1>Registracija</h1>
+
+{% if error %}
+    <p>Klaida: {{ error }}</p>
+{% endif %}
+
+<form method="POST" action="{{ url_for('sign_up_tutor') }}">
+    <fieldset>
+        <legend>Mokinio duomenys</legend>
+        <p>
+            <label for="first_name">Vardas:</label><br>
+            <input type="text" id="first_name" name="first_name" required>
+        </p>
+        
+        <p>
+            <label for="middle_name">Antras vardas:</label><br>
+            <input type="text" id="middle_name" name="middle_name">
+        </p>
+        
+        <p>
+            <label for="last_name">Pavardė:</label><br>
+            <input type="text" id="last_name" name="last_name" required>
+        </p>
+        
+        <p>
+            <label for="birth_date">Gimimo data:</label><br>
+            <input type="date" id="birth_date" name="birth_date" required>
+        </p>
+        
+        <p>
+            <label for="tutor_email">El. paštas:</label><br>
+            <input type="email" id="tutor_email" name="tutor_email" required>
+        </p>
+
+        <p>
+            <label for="subjects">Kokius dalykus norėsite mokyti mūsų platformoje? (atskirkite kableliais)</label><br>
+            <input type="text" id="subjects" name="subjects" placeholder="Matematika, Fizika">
+        </p>
+        
+        <p>
+            <label for="password">Slaptažodis:</label><br>
+            <input type="password" id="password" name="password" required>
+        </p>
+
+        <p>
+            <label for="tutor_phone">Tel. numeris:</label><br>
+            <input type="text" id="tutor_phone" name="tutor_phone" required>
+        </p>
+    </fieldset>>
+    
+    <p>
+        <input type="submit" value="Registruotis">
+    </p>
+</form>
+
+{% endblock %}

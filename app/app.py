@@ -41,6 +41,32 @@ def students():
     except Exception as e:
         return render_template('students.html', students=[], error=str(e))
 
+@app.route('/sign-up-student')
+def sign_up_student():
+    try:
+        # Gauname visus studentus
+        students_collection = db.student
+        students_list = list(students_collection.find({}))
+        
+        return render_template('sign_up_student.html', students=students_list)
+    except Exception as e:
+        return render_template('sign_up_student.html', students=[], error=str(e))
+
+@app.route('/sign-up-tutor')
+def sign_up_tutor():
+    try:
+ 
+        return render_template('sign_up_tutor.html')
+    except Exception as e:
+        return render_template('sign_up_tutor.html', error=str(e))
+
+@app.route('/login')
+def login():
+    try:
+        return render_template('login.html')
+    except Exception as e:
+        return render_template('login.html', error=str(e))
+
 
 from api.tutor import get_tutors_by_name
 
