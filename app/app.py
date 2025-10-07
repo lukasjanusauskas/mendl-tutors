@@ -41,16 +41,80 @@ def students():
     except Exception as e:
         return render_template('students.html', students=[], error=str(e))
 
-@app.route('/sign-up-student')
+from api.student import create_new_student
+import re
+
+@app.route('/sign-up-student', methods=['GET', 'POST'])
 def sign_up_student():
-    try:
-        # Gauname visus studentus
-        students_collection = db.student
-        students_list = list(students_collection.find({}))
-        
-        return render_template('sign_up_student.html', students=students_list)
-    except Exception as e:
-        return render_template('sign_up_student.html', students=[], error=str(e))
+    if request.method == 'POST':
+        try:
+            # Validate and prepare data before sending to API
+            # Convert class to integer
+            try:
+                class_value = int(request.form['class'])
+                if class_value < 1 or class_value > 12:
+                    raise ValueError("Klasė turi būti nuo 1 iki 12")
+            except (ValueError, TypeError):
+                raise ValueError("Klasė turi būti skaičius nuo 1 iki 12")
+            
+            # Validate parents phone numbers
+            parents_phones_raw = request.form.get('parents_phone_numbers', '')
+            if not parents_phones_raw.strip():
+                raise ValueError("Būtina nurodyti bent vieną tėvų telefono numerį")
+            
+            parents_phones_list = [p.strip() for p in parents_phones_raw.split(',') if p.strip()]
+            if not parents_phones_list:
+                raise ValueError("Būtina nurodyti bent vieną tėvų telefono numerį")
+            
+            # Validate phone number format
+            phone_pattern = r'^\+?\d{7,15}$'
+            for i, phone in enumerate(parents_phones_list):
+                if not re.match(phone_pattern, phone):
+                    raise ValueError(f"Neteisingas telefono numerio formatas: '{phone}'. Telefono numeris turi būti 7-15 skaitmenų, gali prasidėti '+' ženklu")
+            
+            # Validate student phone number if provided
+            student_phone = request.form.get('phone_number', '').strip()
+            if student_phone and not re.match(phone_pattern, student_phone):
+                raise ValueError(f"Neteisingas mokinio telefono numerio formatas: '{student_phone}'. Telefono numeris turi būti 7-15 skaitmenų, gali prasidėti '+' ženklu")
+
+            # Paruošiame duomenis API funkcijai
+            student_info = {
+                'first_name': request.form['first_name'],
+                'last_name': request.form['last_name'],
+                'date_of_birth': request.form['date_of_birth'],
+                'class': class_value,
+                'password': request.form['password'],
+                'parents_phone_numbers': parents_phones_list
+            }
+
+            # Neprivalomi laukai
+            if request.form.get('second_name'):
+                student_info['second_name'] = request.form['second_name']
+            if student_phone:
+                student_info['phone_number'] = student_phone
+            if request.form.get('student_email'):
+                student_info['student_email'] = request.form['student_email']
+            if request.form.get('parents_email'):
+                student_info['parents_email'] = request.form['parents_email']
+
+            # Subjects - konvertuojame iš string į list
+            subjects_raw = request.form.get('subjects', '')
+            if subjects_raw:
+                subjects_list = [s.strip() for s in subjects_raw.split(',') if s.strip()]
+                student_info['subjects'] = subjects_list
+            else:
+                student_info['subjects'] = []
+
+            # Sukuriame studentą
+            create_new_student(db.student, student_info)
+            flash('Studentas sėkmingai užregistruotas!', 'success')
+            return redirect(url_for('students'))
+
+        except Exception as e:
+            return render_template('sign_up_student.html', error=str(e))
+    
+    # GET request
+    return render_template('sign_up_student.html')
 
 @app.route('/sign-up-tutor')
 def sign_up_tutor():
