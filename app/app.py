@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from pymongo import MongoClient
 from dotenv import load_dotenv
+import hashlib
 import os
 import re
 
@@ -242,12 +243,58 @@ def sign_up_tutor():
     # GET request
     return render_template('sign_up_tutor.html')
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    try:
-        return render_template('login.html')
-    except Exception as e:
-        return render_template('login.html', error=str(e))
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        
+        try:
+            # Check if user is a tutor
+            tutor = db.tutor.find_one({"email": email})
+            if tutor:
+                # Verify password
+                password_encoded = password.encode('utf-8')
+                hash_algo = hashlib.sha256()
+                hash_algo.update(password_encoded)
+                hashed_password = hash_algo.hexdigest()
+                
+                if tutor.get('password_hashed') == hashed_password:
+                    session['user_id'] = str(tutor['_id'])
+                    session['user_type'] = 'tutor'
+                    session['user_name'] = f"{tutor['first_name']} {tutor['last_name']}"
+                    flash('Sėkmingai prisijungėte!', 'success')
+                    return redirect(url_for('view_tutor', tutor_id=str(tutor['_id'])))
+            
+            # Check if user is a student
+            student = db.student.find_one({"student_email": email})
+            if student:
+                # Verify password
+                password_encoded = password.encode('utf-8')
+                hash_algo = hashlib.sha256()
+                hash_algo.update(password_encoded)
+                hashed_password = hash_algo.hexdigest()
+                
+                if student.get('password_hashed') == hashed_password:
+                    session['user_id'] = str(student['_id'])
+                    session['user_type'] = 'student'
+                    session['user_name'] = f"{student['first_name']} {student['last_name']}"
+                    flash('Sėkmingai prisijungėte!', 'success')
+                    return redirect(url_for('view_student', student_id=str(student['_id'])))
+            
+            # If we get here, login failed
+            return render_template('login.html', error='Neteisingas el. paštas arba slaptažodis')
+            
+        except Exception as e:
+            return render_template('login.html', error=str(e))
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Sėkmingai atsijungėte!', 'info')
+    return redirect(url_for('index'))
 
 @app.route("/tutors", methods=["GET"])
 def tutors():

@@ -17,6 +17,22 @@
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('tutors') }}">Korepetitoriai</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('students') }}">Studentai</a></li>
+                {% if session.user_id %}
+                    <li class="nav-item">
+                        {% if session.user_type == 'student' %}
+                            <a class="nav-link" href="{{ url_for('view_student', student_id=session.user_id) }}">Sveiki, {{ session.user_name }}!</a>
+                        {% elif session.user_type == 'tutor' %}
+                            <a class="nav-link" href="{{ url_for('view_tutor', tutor_id=session.user_id) }}">Sveiki, {{ session.user_name }}!</a>
+                        {% else %}
+                            <span class="navbar-text">Sveiki, {{ session.user_name }}!</span>
+                        {% endif %}
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Atsijungti</a></li>
+                {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Prisijungti</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('sign_up_student') }}">Registruotis (Studentas)</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('sign_up_tutor') }}">Registruotis (Korepetitorius)</a></li>
+                {% endif %}
             </ul>
         </div>
     </div>
