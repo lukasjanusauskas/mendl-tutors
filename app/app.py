@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import hashlib
+import traceback
 import os
 import re
 
@@ -30,6 +31,13 @@ from api.student import (
     get_students_by_name,
     create_new_student,
     delete_student
+)
+from api.aggregates import (
+    pay_month_student,
+    pay_month_tutor,
+    calculate_tutor_rating,
+    get_student_review_count,
+    get_tutor_review_count
 )
 
 load_dotenv()
@@ -70,6 +78,15 @@ def view_student(student_id):
 
         tutors_cursor = db.tutor.find({"students_subjects.student.student_id": student_id})
 
+        review_count = get_student_review_count(db['review'], 
+                                              student_id=student['_id'])
+        if review_count:
+            student['review_count'] = review_count
+
+        pay = pay_month_student(db['lesson'], student_id=student['_id'])
+        if pay:
+            student['pay'] = pay
+
         for t in tutors_cursor:
             tutors.append({
                 "first_name": t.get("first_name", ""),
@@ -81,6 +98,7 @@ def view_student(student_id):
             })
         return render_template("student.html", student=student, tutors=tutors)
     except Exception as e:
+        traceback.print_exc()
         return render_template("student.html", student=None, tutors=None, error=str(e))
 
 
@@ -203,7 +221,6 @@ def sign_up_student():
     return render_template('sign_up_student.html')
 
 
-
 @app.route('/sign-up-tutor', methods=['GET', 'POST'])
 def sign_up_tutor():
     if request.method == 'POST':
@@ -296,6 +313,7 @@ def logout():
     flash('Sėkmingai atsijungėte!', 'info')
     return redirect(url_for('index'))
 
+
 @app.route("/tutors", methods=["GET"])
 def tutors():
     """
@@ -322,19 +340,34 @@ def tutors():
         return render_template("tutors.html", tutors=[], error=str(e))
 
 
-
 @app.route("/tutor/<tutor_id>/view")
 def view_tutor(tutor_id):
     try:
         tutor = get_tutor_by_id(db.tutor, tutor_id)
+
+        rating = calculate_tutor_rating(db['review'], tutor['_id'])
+        if rating:
+            tutor['rating'] = rating
+
+        review_count = get_tutor_review_count(db['review'], tutor_id=tutor['_id'])
+        if review_count:
+            tutor['review_count'] = review_count
+
+        pay = pay_month_tutor(db['lesson'], tutor_id=tutor['_id'])
+        if pay:
+            tutor['pay'] = pay
+
         if not tutor:
             return render_template("tutor.html", tutor=None, students=None)
+
+        print(tutor )
 
         students = get_tutor_students(db.tutor, tutor_id)
         return render_template("tutor.html", tutor=tutor, students=students)
 
     except Exception as e:
         return render_template("tutor.html", tutor=None, students=None, error=str(e))
+
 
 @app.route("/tutors/<tutor_id>/delete", methods=["GET", "POST"])
 def remove_tutor(tutor_id):
@@ -347,6 +380,7 @@ def remove_tutor(tutor_id):
     except Exception as e:
         flash(str(e), "danger")
     return redirect(url_for("tutors"))
+
 
 @app.route("/tutors/add", methods=["GET", "POST"])
 def add_tutor():
@@ -382,6 +416,7 @@ def add_tutor():
             flash(str(e), "danger")
 
     return render_template("add_tutor.html")
+
 
 @app.route('/tutor/<tutor_id>/create_review', methods=['GET', 'POST'])
 def add_new_review_tutor(tutor_id):
