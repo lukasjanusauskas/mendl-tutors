@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Prisijungimas{% endblock %}
+
+{% block content %}
+<h1>Prisijungimas</h1>
+
+{% if error %}
+    <p>Klaida: {{ error }}</p>
+{% endif %}
+
+<form method="POST" action="{{ url_for('login') }}">
+    <p>
+        <label for="email">El. paštas:</label><br>
+        <input type="email" id="email" name="email" required>
+    </p>
+    
+    <p>
+        <label for="password">Slaptažodis:</label><br>
+        <input type="password" id="password" name="password" required>
+    </p>
+    
+    <p>
+        <input type="submit" value="Registruotis">
+    </p>
+</form>
+
+{% endblock %}

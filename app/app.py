@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
-
+import re
 
 from api.tutor import (
     get_tutor_by_id,
@@ -13,7 +13,8 @@ from api.tutor import (
     get_tutors_by_name
 )
 from api.student import (
-    get_students_tutors
+    get_students_tutors,
+    create_new_student
 )
 from api.reviews import (
     create_review
@@ -41,8 +42,125 @@ def students():
     except Exception as e:
         return render_template('students.html', students=[], error=str(e))
 
+@app.route('/sign-up-student', methods=['GET', 'POST'])
+def sign_up_student():
+    if request.method == 'POST':
+        try:
+            # Validate and prepare data before sending to API
+            # Convert class to integer
+            try:
+                class_value = int(request.form['class'])
+                if class_value < 1 or class_value > 12:
+                    raise ValueError("Klasė turi būti nuo 1 iki 12")
+            except (ValueError, TypeError):
+                raise ValueError("Klasė turi būti skaičius nuo 1 iki 12")
+            
+            # Validate parents phone numbers
+            parents_phones_raw = request.form.get('parents_phone_numbers', '')
+            if not parents_phones_raw.strip():
+                raise ValueError("Būtina nurodyti bent vieną tėvų telefono numerį")
+            
+            parents_phones_list = [p.strip() for p in parents_phones_raw.split(',') if p.strip()]
+            if not parents_phones_list:
+                raise ValueError("Būtina nurodyti bent vieną tėvų telefono numerį")
+            
+            # Validate phone number format
+            phone_pattern = r'^\+?\d{7,15}$'
+            for i, phone in enumerate(parents_phones_list):
+                if not re.match(phone_pattern, phone):
+                    raise ValueError(f"Neteisingas telefono numerio formatas: '{phone}'. Telefono numeris turi būti 7-15 skaitmenų, gali prasidėti '+' ženklu")
+            
+            # Validate student phone number if provided
+            student_phone = request.form.get('phone_number', '').strip()
+            if student_phone and not re.match(phone_pattern, student_phone):
+                raise ValueError(f"Neteisingas mokinio telefono numerio formatas: '{student_phone}'. Telefono numeris turi būti 7-15 skaitmenų, gali prasidėti '+' ženklu")
 
-from api.tutor import get_tutors_by_name
+            # Paruošiame duomenis API funkcijai
+            student_info = {
+                'first_name': request.form['first_name'],
+                'last_name': request.form['last_name'],
+                'date_of_birth': request.form['date_of_birth'],
+                'class': class_value,
+                'password': request.form['password'],
+                'parents_phone_numbers': parents_phones_list
+            }
+
+            # Neprivalomi laukai
+            if request.form.get('second_name'):
+                student_info['second_name'] = request.form['second_name']
+            if student_phone:
+                student_info['phone_number'] = student_phone
+            if request.form.get('student_email'):
+                student_info['student_email'] = request.form['student_email']
+            if request.form.get('parents_email'):
+                student_info['parents_email'] = request.form['parents_email']
+
+            # Subjects - konvertuojame iš string į list
+            subjects_raw = request.form.get('subjects', '')
+            if subjects_raw:
+                subjects_list = [s.strip() for s in subjects_raw.split(',') if s.strip()]
+                student_info['subjects'] = subjects_list
+            else:
+                student_info['subjects'] = []
+
+            # Sukuriame studentą
+            create_new_student(db.student, student_info)
+            flash('Studentas sėkmingai užregistruotas!', 'success')
+            return redirect(url_for('students'))
+
+        except Exception as e:
+            return render_template('sign_up_student.html', error=str(e))
+    
+    # GET request
+    return render_template('sign_up_student.html')
+
+
+
+@app.route('/sign-up-tutor', methods=['GET', 'POST'])
+def sign_up_tutor():
+    if request.method == 'POST':
+        try:
+            tutor_info = {
+                "first_name": request.form['first_name'],
+                "last_name": request.form['last_name'],
+                "date_of_birth": request.form['date_of_birth'],
+                "email": request.form['email'],
+                "password": request.form['password'],
+                "subjects": []
+            }
+
+            # Neprivalomi laukai
+            second_name = request.form.get('second_name')
+            if second_name:
+                tutor_info['second_name'] = second_name
+
+            phone = request.form.get('phone_number')
+            if phone:
+                tutor_info['phone_number'] = phone
+
+            # Subjects apdorojimas - konvertuojame į objektų masyvą
+            subjects_raw = request.form.get('subjects', "")
+            if subjects_raw:
+                subjects_list = [s.strip() for s in subjects_raw.split(",") if s.strip()]
+                tutor_info['subjects'] = [{"subject": s, "max_class": 12} for s in subjects_list]
+            else:
+                raise ValueError("Būtina nurodyti bent vieną dėstomą dalyką")
+
+            create_new_tutor(db.tutor, tutor_info)
+            flash("Korepetitorius sėkmingai užregistruotas!", "success")
+            return redirect(url_for("tutors"))
+        except Exception as e:
+            return render_template('sign_up_tutor.html', error=str(e))
+    
+    # GET request
+    return render_template('sign_up_tutor.html')
+
+@app.route('/login')
+def login():
+    try:
+        return render_template('login.html')
+    except Exception as e:
+        return render_template('login.html', error=str(e))
 
 @app.route("/tutors", methods=["GET"])
 def tutors():
