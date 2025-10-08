@@ -10,22 +10,45 @@
 
     {% if student %}
         <h1 class="mb-4">{{ student.first_name }} {{ student.second_name or "" }} {{ student.last_name }}</h1>
-        <p><strong>Gimimo data:</strong> {{student.date_of_birth.strftime('%Y-%m-%d') if student.date_of_birth else ''}}</p>
-        <p><strong>Tėvų telefonai:</strong> {{ student.parents_phone_numbers | join(', ')}}</p>
-        <p><strong>Mokinio telefonas:</strong> {{student.student_phone_number or ""}}</p>
-        <p><strong>Mokinio email:</strong> {{ student.student_email or ""}}</p>
-        <p><strong>Tėvų email:</strong> {{ student.parents_email or ""}}</p>
-        <p><strong>Dalykai:</strong>
-            {% if student.subjects %}
-                <ul>
+
+        <table class="table table-bordered table-striped">
+        <tbody>
+            <tr>
+            <th scope="row" class="w-25">Gimimo data:</th>
+            <td>{{student.date_of_birth.strftime('%Y-%m-%d') if student.date_of_birth else ''}}</td>
+            </tr>
+            <tr>
+            <th scope="row">Tėvų telefonai:</th>
+            <td>{{ student.parents_phone_numbers | join(', ')}}</td>
+            </tr>
+            <tr>
+            <th scope="row">Mokinio telefonas:</th>
+            <td>{{student.student_phone_number or ""}}</td>
+            </tr>
+            <tr>
+            <th scope="row">Mokinio email:</th>
+            <td>{{ student.student_email or ""}}</td>
+            </tr>
+            <tr>
+            <th scope="row">Tėvų email:</th>
+            <td>{{ student.parents_email or ""}}</td>
+            </tr>
+            <tr>
+            <th scope="row">Dalykai:</th>
+            <td>
+                {% if student.subjects %}
+                <ul class="mb-0">
                     {% for s in student.subjects %}
-                        <li>{{ s }}</li>
+                    <li>{{ s }}</li>
                     {% endfor %}
                 </ul>
-            {% else %}
+                {% else %}
                 -
-            {% endif %}
-        </p>
+                {% endif %}
+            </td>
+            </tr>
+        </tbody>
+        </table>
 
         <h3 class="mt-4">Korepetitoriai</h3>
         {% if tutors %}
@@ -52,7 +75,7 @@
                 </table>
             </div>
         {% else %}
-            <p class="text-muted">Korepetitorių nėra.</p>
+            <p class="text-muted">Mokinys šiuo metu neturi priskirtų korepetitorių.</p>
         {% endif %}
 
     {% else %}

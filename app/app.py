@@ -17,7 +17,18 @@ from api.student import (
     create_new_student
 )
 from api.reviews import (
-    create_review
+    create_review,
+    list_reviews_student,
+    list_reviews_tutor,
+    revoke_review,
+    get_single_review
+)
+from api.student import (
+    get_all_students,
+    get_student_by_id,
+    get_students_by_name,
+    create_new_student,
+    delete_student
 )
 
 load_dotenv()
@@ -31,16 +42,92 @@ db = client['mendel-tutor']
 def index():
     return render_template("index.html")
 
+
 @app.route('/students')
 def students():
+    first_name = request.args.get("first_name")
+    last_name = request.args.get("last_name")
+
+    if first_name and last_name:
+        students_list = get_students_by_name(db["student"], first_name, last_name)
+    else:
+        students_list = get_all_students(db["student"])
+
+
+    if first_name is None:
+        return render_template("students.html", students=students_list, first_name="Vardas", last_name="Pavardė")
+
+    elif first_name is not None:
+        return render_template("students.html", students=students_list, first_name=first_name, last_name=last_name)
+
+
+@app.route("/student/<student_id>")
+def view_student(student_id):
     try:
-        # Gauname visus studentus
-        students_collection = db.student
-        students_list = list(students_collection.find({}))
-        
-        return render_template('students.html', students=students_list)
+        student = get_student_by_id(db["student"], student_id)
+        tutors = []
+
+        tutors_cursor = db.tutor.find({"students_subjects.student.student_id": student_id})
+
+        for t in tutors_cursor:
+            tutors.append({
+                "first_name": t.get("first_name", ""),
+                "last_name": t.get("last_name", ""),
+                "email": t.get("email", ""),
+                "subject": ", ".join(
+                    [s.get("subject", "") for s in t.get("subjects", [])]
+                )
+            })
+        return render_template("student.html", student=student, tutors=tutors)
     except Exception as e:
-        return render_template('students.html', students=[], error=str(e))
+        return render_template("student.html", student=None, tutors=None, error=str(e))
+
+
+@app.route("/student/add", methods=["GET", "POST"])
+def add_student():
+    if request.method == "POST":
+        try:
+            data = {
+                "first_name": request.form["first_name"],
+                "last_name": request.form["last_name"],
+                "second_name": request.form.get("second_name"),
+                "class": int(request.form["class"]),
+                "date_of_birth": request.form["date_of_birth"],
+                "subjects": [s.strip() for s in request.form["subjects"].split(",")],
+                "parents_phone_numbers": [p.strip() for p in request.form["parents_phone_numbers"].split(",")],
+                "student_phone_number": request.form.get("student_phone_number"),
+                "student_email": request.form.get("student_email"),
+                "parents_email": request.form.get("parents_email"),
+                "password": request.form["password"]
+            }
+
+            if "student_email" in request.form:
+                data["student_email"] = request.form["student_email"]
+
+            create_new_student(db.student, data)
+            flash("Mokinys sėkmingai pridėtas!", "success")
+            return redirect(url_for("students"))
+
+        except Exception as e:
+            flash(str(e), "danger")
+
+    return render_template("add_student.html")
+
+
+@app.route("/student/<student_id>/delete", methods=["GET", "POST"])
+def delete_student_ui(student_id):
+    try:
+        result = delete_student(db.student, db.tutor, student_id)
+        if result["deleted"]:
+            flash("Mokinys sėkmingai ištrintas!", "success")
+        else:
+            flash("Mokinys nerastas.", "warning")
+
+    except Exception as e:
+            flash(str(e), "danger")
+
+    return redirect(url_for("students"))
+
 
 @app.route('/sign-up-student', methods=['GET', 'POST'])
 def sign_up_student():
@@ -304,6 +391,7 @@ def add_new_review_student(student_id):
     if request.method == 'POST':
         tutor_id = request.form.get('tutor_id')
         review_text = request.form.get('review_text')
+        rating = request.form.get('rating')
 
         # Išsaugoti atsiliepimą duomenų bazėje
         create_review(
@@ -312,7 +400,8 @@ def add_new_review_student(student_id):
                 'tutor_id': tutor_id,
                 'student_id': student_id,
                 'for_tutor': True,
-                'review_text': review_text
+                'review_text': review_text,
+                'rating': int(rating)
             }
         )
 
@@ -320,8 +409,88 @@ def add_new_review_student(student_id):
         return redirect("/")
     
     return render_template('review_student.html', tutors=tutors, student_id=student_id)
-# Revoke reviews
 
+
+@app.route('/tutor/<tutor_id>/review_list', methods=['GET'])
+def show_reviews_tutor(tutor_id):
+
+    recieved_reviews, written_reviews = list_reviews_tutor(db['review'], tutor_id)
+    
+    return render_template('review_view.html',
+                           tutor_id=tutor_id,
+                           written_reviews=written_reviews,
+                           recieved_reviews=recieved_reviews)
+
+
+@app.route('/student/<student_id>/review_list', methods=['GET'])
+def show_reviews_student(student_id):
+
+    recieved_reviews, written_reviews = list_reviews_student(db['review'], student_id)
+
+    return render_template('review_view_student.html',
+                           student_id=student_id,
+                           written_reviews=written_reviews,
+                           recieved_reviews=recieved_reviews)
+
+
+@app.route('/tutor/revoke_review/<tutor_id>/<review_id>', methods=['GET'])
+def tutor_revoke_review(tutor_id, review_id):
+
+    try:
+        revoke_review(db['review'], review_id)
+    except Exception as err:
+        flash(str(err), 'danger')
+
+    flash('Sėkmingai atsiimtas atsiliepimas', 'success')
+
+    return redirect(url_for('show_reviews_tutor', tutor_id=tutor_id))
+
+
+@app.route('/student/revoke_review/<student_id>/<review_id>', methods=['GET'])
+def student_revoke_review(student_id, review_id):
+
+    try:
+        revoke_review(db['review'], review_id)
+    except Exception as err:
+        flash(str(err), 'danger')
+
+    flash('Sėkmingai atsiimtas atsiliepimas', 'success')
+
+    return redirect(url_for('show_reviews_student', student_id=student_id))
+
+
+@app.route('/review/revoke/tutor/<review_id>/<tutor_id>', methods=['GET'])
+def revoke_review_dialog_tutor(review_id, tutor_id):
+    """ View and (optionally) revoke review"""
+
+    try:
+        review = get_single_review(db['review'], review_id=review_id)
+
+    except ValueError:
+        flash('Could not find review', 'danger')
+        redirect( url_for('show_reviews_tutor', tutor_id=tutor_id) )
+
+    return render_template('revoke_review.html',
+                           review=review,
+                           review_id=review_id,
+                           tutor_id=tutor_id)
+
+
+@app.route('/review/revoke/student/<review_id>/<student_id>', methods=['GET'])
+def revoke_review_dialog_student(review_id, student_id):
+    """ View and (optionally) revoke review"""
+
+    try:
+        review = get_single_review(db['review'], review_id=review_id)
+
+    except ValueError:
+        flash('Could not find review', 'danger')
+        redirect( url_for('show_reviews_student', tutor_id=student_id) )
+
+    return render_template('revoke_review_student.html',
+                           review=review,
+                           review_id=review_id,
+                           student_id=student_id)
 
 
 if __name__ == '__main__':
