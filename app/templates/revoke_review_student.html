@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Atsiimti atsiliepimą{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <h3>Peržiūrėkite atsiliepimą dar kartą ir tik tada atsiimkite jį</h3>
+
+    <table class="w-100 table table-striped my-3">
+        <tbody>
+        {% for key, review_data in review.items() %}
+        <tr>
+            <td style="width: 20%">{{ key }}</td>
+            <td>{{ review_data }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <a class="btn btn-danger" href="{{ url_for('student_revoke_review', student_id=student_id, review_id=review_id) }}">
+        Atsiimti atsiliepimą
+    </a>
+
+    <!-- <button type="button" class="btn btn-danger">Atsiimti atsiliepimą</button> -->
+</div>
+
+{% endblock %}

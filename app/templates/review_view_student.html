@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Parašyti atsiliepimą studentui{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <h2>Mėnesio atsiliepimai</h2>
+
+    <h3>Gauti atsiliepimai</h3>
+    <hr>
+    {% for review_id, review in recieved_reviews %}
+        <table class="w-100 table table-striped my-3">
+            <tbody>
+            {% for key, review_data in review.items() %}
+            <tr>
+                <td style="width: 20%">{{ key }}</td>
+                <td>{{ review_data }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+
+    <h3>Parašyti atsiliepimai</h3>
+    <hr>
+    {% for review_id, review in written_reviews %}
+        <table class="w-100 table table-striped my-3">
+            <tbody>
+            {% for key, review_data in review.items() %}
+            <tr>
+                <td style="width: 20%">{{ key }}</td>
+                <td>{{ review_data }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <a class="btn btn-danger" href="{{ url_for('revoke_review_dialog_student', review_id=review_id, student_id=student_id) }}">
+            Atsiimti atsiliepimą
+        </a>
+
+        <hr>
+    {% endfor %}
+
+    <!-- <button type="button" class="btn btn-danger">Atsiimti atsiliepimą</button> -->
+</div>
+
+{% endblock %}
