@@ -41,7 +41,7 @@ def create_new_student(
         student[field] = student_info[field]
 
     # 2️⃣ Tikriname papildomus laukus
-    optional_arguments = ['phone_number', 'student_email', 'parents_email','second_name']
+    optional_arguments = ['student_phone_number', 'student_email', 'parents_email','second_name']
     for field in optional_arguments:
         if field in student_info:
             student[field] = student_info[field]
@@ -137,5 +137,6 @@ if __name__ == "__main__":
     db = get_db()
     student_collection = db['student']
     tutor_collection = db['tutor']
+
 
     print( get_students_tutors(tutor_collection, "68dfe5e166fb223bfcdd8807") )
