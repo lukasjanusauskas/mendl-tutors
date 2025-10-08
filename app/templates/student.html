@@ -25,6 +25,21 @@
             <th scope="row">Mokinio telefonas:</th>
             <td>{{student.student_phone_number or ""}}</td>
             </tr>
+
+            {% if "pay" in student %}
+            <tr>
+            <th scope="row">Mokėti šį mėnesį:</th>
+            <td>{{student.pay}}</td>
+            </tr>
+            {% endif %}
+
+            {% if "review_count" in student %}
+            <tr>
+            <th scope="row">Atsiliepimų skaičius</th>
+            <td>{{student.review_count}}</td>
+            </tr>
+            {% endif %}
+
             <tr>
             <th scope="row">Mokinio email:</th>
             <td>{{ student.student_email or ""}}</td>
@@ -49,6 +64,11 @@
             </tr>
         </tbody>
         </table>
+
+        <div class="row">
+            <a href="{{ url_for('show_reviews_student', student_id=student._id) }}" class="w-25 mx-2 btn btn-info col text-light btn-lg">Peržiūrėti atsiliepimus</a>
+            <a href="{{ url_for('add_new_review_student', student_id=student._id) }}" class="w-25 mx-2 btn btn-info col text-light btn-lg">Palikti atsiliepimą</a>
+        </div>
 
         <h3 class="mt-4">Korepetitoriai</h3>
         {% if tutors %}

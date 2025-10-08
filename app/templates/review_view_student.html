@@ -9,6 +9,7 @@
 
     <h3>Gauti atsiliepimai</h3>
     <hr>
+    {% if recieved_reviews %}
     {% for review_id, review in recieved_reviews %}
         <table class="w-100 table table-striped my-3">
             <tbody>
@@ -21,9 +22,13 @@
             </tbody>
         </table>
     {% endfor %}
+    {% else %}
+        <p>Dar neparašėte atsiliepimų.</p>
+    {% endif %}
 
     <h3>Parašyti atsiliepimai</h3>
     <hr>
+    {% if written_reviews %}
     {% for review_id, review in written_reviews %}
         <table class="w-100 table table-striped my-3">
             <tbody>
@@ -42,6 +47,9 @@
 
         <hr>
     {% endfor %}
+    {% else %}
+        <p>Dar neparašėte atsiliepimų.</p>
+    {% endif %}
 
     <!-- <button type="button" class="btn btn-danger">Atsiimti atsiliepimą</button> -->
 </div>
