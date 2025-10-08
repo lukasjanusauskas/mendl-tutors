@@ -23,7 +23,7 @@ def create_review(
 
     optional_arguments = ['rating']
     for field in optional_arguments:
-        if field in review:
+        if field in review_info:
             review[field] = review_info[field]
 
     # Patikrinti, ar tutor egiztuoja
@@ -109,11 +109,11 @@ def parse_review(review_doc: dict, filter_revoked: bool) -> dict:
     output = {}
 
     if review_doc['for_tutor']:
-        first_name = review_doc['tutor']['first_name']
-        last_name = review_doc['student']['last_name']
-    else:
         first_name = review_doc['student']['first_name']
         last_name = review_doc['student']['last_name']
+    else:
+        first_name = review_doc['tutor']['first_name']
+        last_name = review_doc['tutor']['last_name']
         
     output['Atsiliepimo autorius'] = f"{first_name} {last_name}"
     output['Atsiliepimas'] = review_doc['review_text']
@@ -195,87 +195,3 @@ def list_reviews_student(
                 (review_doc['_id'], parsed_review) )
 
     return recieved_reviews, written_reviews
-
-# Endpoints
-
-
-# @app.route('/tutor/<tutor_id>/review_list', methods=['GET'])
-# def show_reviews_tutor(tutor_id):
-
-#     recieved_reviews, written_reviews = list_reviews_tutor(db['review'], tutor_id)
-    
-#     return render_template('review_view.html',
-#                            tutor_id=tutor_id,
-#                            written_reviews=written_reviews,
-#                            recieved_reviews=recieved_reviews)
-
-
-# @app.route('/student/<student_id>/review_list', methods=['GET'])
-# def show_reviews_student(student_id):
-
-#     recieved_reviews, written_reviews = list_reviews_student(db['review'], student_id)
-    
-#     return render_template('review_view_student.html',
-#                            student_id=student_id,
-#                            written_reviews=written_reviews,
-#                            recieved_reviews=recieved_reviews)
-
-
-# @app.route('/tutor/revoke_review/<tutor_id>/<review_id>', methods=['GET'])
-# def tutor_revoke_review(tutor_id, review_id):
-
-#     try:
-#         revoke_review(db['review'], review_id)
-#     except Exception as err:
-#         flash(str(err), 'danger')
-
-#     flash('Sėkmingai atsiimtas atsiliepimas', 'success')
-
-#     return redirect(url_for('show_reviews_tutor', tutor_id=tutor_id))
-
-
-# @app.route('/student/revoke_review/<student_id>/<review_id>', methods=['GET'])
-# def student_revoke_review(student_id, review_id):
-
-#     try:
-#         revoke_review(db['review'], review_id)
-#     except Exception as err:
-#         flash(str(err), 'danger')
-
-#     flash('Sėkmingai atsiimtas atsiliepimas', 'success')
-
-#     return redirect(url_for('show_reviews_student', student_id=student_id))
-
-
-# @app.route('/review/revoke/tutor/<review_id>/<tutor_id>', methods=['GET'])
-# def revoke_review_dialog_tutor(review_id, tutor_id):
-#     """ View and (optionally) revoke review"""
-
-#     try:
-#         review = get_single_review(db['review'], review_id=review_id)
-
-#     except ValueError:
-#         flash('Could not find review', 'danger')
-#         redirect( url_for('show_reviews_tutor', tutor_id=tutor_id) )
-
-#     return render_template('revoke_review.html',
-#                            review=review,
-#                            review_id=review_id,
-#                            tutor_id=tutor_id)
-
-
-# @app.route('/review/revoke/student/<review_id>/<student_id>', methods=['GET'])
-# def revoke_review_dialog_student(review_id, student_id):
-#     """ View and (optionally) revoke review"""
-
-#     try:
-#         review = get_single_review(db['review'], review_id=review_id)
-
-#     except ValueError:
-#         flash('Could not find review', 'danger')
-#         redirect( url_for('show_reviews_student', tutor_id=student_id) )
-
-#     return render_template('revoke_review_student.html',
-#                            review=review,
-#                            review_id=review_id,
-#                            student_id=student_id)
