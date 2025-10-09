@@ -243,22 +243,29 @@ def sign_up_tutor():
             if phone:
                 tutor_info['phone_number'] = phone
 
-            # Subjects apdorojimas - konvertuojame į objektų masyvą
-            subjects_raw = request.form.get('subjects', "")
-            if subjects_raw:
-                subjects_list = [s.strip() for s in subjects_raw.split(",") if s.strip()]
-                tutor_info['subjects'] = [{"subject": s, "max_class": 12} for s in subjects_list]
-            else:
-                raise ValueError("Būtina nurodyti bent vieną dėstomą dalyką")
+            # Apdorojame dalykus ir klases
+            subjects_raw = request.form.getlist('subjects')
+            if not subjects_raw:
+                raise ValueError("Būtina pasirinkti bent vieną dėstomą dalyką")
+
+            for subject in subjects_raw:
+                max_class_key = f"max_class_{subject}"
+                max_class = request.form.get(max_class_key, 12)
+                tutor_info['subjects'].append({
+                    "subject": subject,
+                    "max_class": int(max_class)
+                })
 
             create_new_tutor(db.tutor, tutor_info)
             flash("Korepetitorius sėkmingai užregistruotas!", "success")
             return redirect(url_for("tutors"))
+
         except Exception as e:
             return render_template('sign_up_tutor.html', error=str(e))
-    
-    # GET request
+
+    # GET užklausa
     return render_template('sign_up_tutor.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -395,7 +402,7 @@ def add_tutor():
                 "subjects": []
             }
 
-            # Необязательные поля
+            # Nebūtini laukai
             second_name = request.form.get('second_name')
             if second_name:
                 tutor_info['second_name'] = second_name
@@ -404,10 +411,15 @@ def add_tutor():
             if phone:
                 tutor_info['phone_number'] = phone
 
-            subjects_raw = request.form.get('subjects', "")
-            if subjects_raw:
-                subjects_list = [s.strip() for s in subjects_raw.split(",") if s.strip()]
-                tutor_info['subjects'] = [{"subject": s, "max_class": 12} for s in subjects_list]
+            # Gauti pasirinktus dalykus ir jų klases
+            subjects_raw = request.form.getlist('subjects')
+            for subject in subjects_raw:
+                max_class_key = f"max_class_{subject}"
+                max_class = request.form.get(max_class_key, 12)
+                tutor_info['subjects'].append({
+                    "subject": subject,
+                    "max_class": int(max_class)
+                })
 
             create_new_tutor(db.tutor, tutor_info)
             flash("Korepetitorius sėkmingai pridėtas!", "success")
@@ -416,6 +428,7 @@ def add_tutor():
             flash(str(e), "danger")
 
     return render_template("add_tutor.html")
+
 
 
 @app.route('/tutor/<tutor_id>/create_review', methods=['GET', 'POST'])

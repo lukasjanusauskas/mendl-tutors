@@ -8,10 +8,16 @@
 <!-- 🔍 Paieškos forma -->
 <form method="GET" action="{{ url_for('students') }}" class="row g-3 justify-content-center mb-4">
     <div class="col-md-4">
-        <input type="text" name="first_name" class="form-control" placeholder="Vardas" value="{{ first_name }}">
+        <input type="text" name="first_name" class="form-control"
+               placeholder="{{ first_name or 'Vardas' }}"
+               onfocus="if(this.placeholder=='{{ first_name }}') this.placeholder='';"
+               onblur="if(this.value=='') this.placeholder='{{ first_name or 'Vardas' }}';">
     </div>
     <div class="col-md-4">
-        <input type="text" name="last_name" class="form-control" placeholder="Pavardė" value="{{ last_name }}">
+        <input type="text" name="last_name" class="form-control"
+               placeholder="{{ last_name or 'Pavardė' }}"
+               onfocus="if(this.placeholder=='{{ last_name }}') this.placeholder='';"
+               onblur="if(this.value=='') this.placeholder='{{ last_name or 'Pavardė' }}';">
     </div>
     <div class="col-md-2">
         <button type="submit" class="btn btn-primary w-100">🔍 Ieškoti</button>
@@ -45,8 +51,8 @@
             <td>{{ student.first_name or '-' }}</td>
             <td>{{ student.last_name or '-' }}</td>
             <td>{{ student.class or '-' }}</td>
-            <td>{{ student.subjects | join(',')}}</td>
-            <td>{{student.parents_phone_numbers | join(',')}}</td>
+            <td>{{ student.subjects | join(',') }}</td>
+            <td>{{ student.parents_phone_numbers | join(',') }}</td>
             <td>
                 <a href="{{ url_for('view_student', student_id=student._id|string) }}" class="btn btn-sm btn-primary">
                     Peržiūrėti
@@ -62,7 +68,7 @@
     </tbody>
 </table>
 {% else %}
-    <p class="text-center text-muted">Studentų nerasta.</p>
+<p class="text-center text-muted">Studentų nerasta.</p>
 {% endif %}
 
 {% endblock %}

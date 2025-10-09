@@ -1,79 +1,122 @@
 {% extends "base.html" %}
 
-{% block title %}Registracija{% endblock %}
+{% block title %}Studento registracija{% endblock %}
 
 {% block content %}
-<h1>Studento registracija</h1>
+<div class="container mt-4 mb-5">
+    <h1 class="text-center mb-4">Studento registracija</h1>
 
-{% if error %}
-    <p>Klaida: {{ error }}</p>
-{% endif %}
+    {% if error %}
+        <div class="alert alert-danger text-center">{{ error }}</div>
+    {% endif %}
 
-<form method="POST" action="{{ url_for('sign_up_student') }}">
-    <fieldset>
-        <legend>Mokinio duomenys</legend>
-        <p>
-            <label for="first_name">Vardas:</label><br>
-            <input type="text" id="first_name" name="first_name" required>
-        </p>
-        
-        <p>
-            <label for="second_name">Antras vardas:</label><br>
-            <input type="text" id="second_name" name="second_name">
-        </p>
-        
-        <p>
-            <label for="last_name">Pavardė:</label><br>
-            <input type="text" id="last_name" name="last_name" required>
-        </p>
-        
-        <p>
-            <label for="date_of_birth">Gimimo data:</label><br>
-            <input type="date" id="date_of_birth" name="date_of_birth" required>
-        </p>
-        
-        <p>
-            <label for="student_email">El. paštas:</label><br>
-            <input type="email" id="student_email" name="student_email" required>
-        </p>
+    <form method="POST" action="{{ url_for('sign_up_student') }}" class="mx-auto" style="max-width: 600px;">
+        <fieldset class="border rounded-3 p-4 mb-4 shadow-sm bg-light">
+            <legend class="w-auto px-2">Mokinio duomenys</legend>
 
-        <p>
-            <label for="class">Kurioje klasėje šiuo metu mokotės?</label><br>
-            <input type="text" id="class" name="class" required>
-        </p>
+            <div class="mb-3">
+                <label for="first_name" class="form-label">Vardas:</label>
+                <input type="text" id="first_name" name="first_name" class="form-control" required>
+            </div>
 
-        <p>
-            <label for="subjects">Kokius dalykus norėsite mokytis mūsų platformoje? (atskirkite kableliais)</label><br>
-            <input type="text" id="subjects" name="subjects" placeholder="Matematika, Fizika" required>
-        </p>
-        
-        <p>
-            <label for="password">Slaptažodis:</label><br>
-            <input type="password" id="password" name="password" required>
-        </p>
+            <div class="mb-3">
+                <label for="second_name" class="form-label">Antras vardas:</label>
+                <input type="text" id="second_name" name="second_name" class="form-control">
+            </div>
 
-        <p>
-            <label for="phone_number">Mokinio tel. numeris:</label><br>
-            <input type="text" id="phone_number" name="phone_number">
-        </p>
-    </fieldset>
+            <div class="mb-3">
+                <label for="last_name" class="form-label">Pavardė:</label>
+                <input type="text" id="last_name" name="last_name" class="form-control" required>
+            </div>
 
-    <fieldset>
-        <legend>Tėvų (globėjų) duomenys</legend>
-        <p>
-            <label for="parents_email">Tėvų (globėjų) el. paštas:</label><br>
-            <input type="email" id="parents_email" name="parents_email" required>
-        </p>
+            <div class="mb-3">
+                <label for="date_of_birth" class="form-label">Gimimo data:</label>
+                <input type="date" id="date_of_birth" name="date_of_birth" class="form-control" required>
+            </div>
 
-        <p>
-            <label for="parents_phone_numbers">Tėvų (globėjų) tel. numeriai (atskirkite kableliais):</label><br>
-            <input type="text" id="parents_phone_numbers" name="parents_phone_numbers" placeholder="+37060012345, +37061234567" required>
-        </p>
-    </fieldset>
-    
-    <p>
-        <input type="submit" value="Registruotis">
-    </p>
-</form>
+            <div class="mb-3">
+                <label for="student_email" class="form-label">El. paštas:</label>
+                <input type="email" id="student_email" name="student_email" class="form-control" required>
+            </div>
 
+            <div class="mb-3">
+                <label for="class" class="form-label">Kurioje klasėje šiuo metu mokotės?</label>
+                <input type="number" min="1" max="12" id="class" name="class" class="form-control" required>
+            </div>
+
+            <div class="mb-3 position-relative">
+                <label for="subjectsInput" class="form-label">Kokius dalykus norėsite mokytis mūsų platformoje?</label>
+                <input type="text" id="subjectsInput" name="subjects_display" class="form-control" readonly placeholder="Pasirinkite dalykus">
+
+                <div id="subjectsMenu" class="border rounded bg-white shadow p-2 position-absolute w-100"
+                     style="display:none; z-index:1000; max-height:300px; overflow-y:auto;">
+                    {% for subject in ["Matematika","Fizika","Chemija","Biologija","Lietuvių kalba","Anglų kalba","Istorija","Geografija","Informatika"] %}
+                        <div class="subject-item mb-1">
+                            <input type="checkbox" value="{{ subject }}" name="subjects" class="form-check-input me-1">
+                            <label class="form-check-label">{{ subject }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Slaptažodis:</label>
+                <input type="password" id="password" name="password" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="phone_number" class="form-label">Mokinio tel. numeris:</label>
+                <input type="text" id="phone_number" name="phone_number" class="form-control" placeholder="+37060012345">
+            </div>
+        </fieldset>
+
+        <fieldset class="border rounded-3 p-4 mb-4 shadow-sm bg-light">
+            <legend class="w-auto px-2">Tėvų (globėjų) duomenys</legend>
+
+            <div class="mb-3">
+                <label for="parents_email" class="form-label">Tėvų (globėjų) el. paštas:</label>
+                <input type="email" id="parents_email" name="parents_email" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="parents_phone_numbers" class="form-label">Tėvų (globėjų) tel. numeriai (atskirkite kableliais):</label>
+                <input type="text" id="parents_phone_numbers" name="parents_phone_numbers" class="form-control" placeholder="+37060012345, +37061234567" required>
+            </div>
+        </fieldset>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary px-5 py-2">Registruotis</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    const input = document.getElementById('subjectsInput');
+    const menu = document.getElementById('subjectsMenu');
+    const checkboxes = menu.querySelectorAll('input[type=checkbox]');
+
+    // Rodyti / slėpti meniu
+    input.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Valdyti pasirinktus dalykus
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            const selected = Array.from(checkboxes)
+                .filter(c => c.checked)
+                .map(c => c.value)
+                .join(', ');
+            input.value = selected;
+        });
+    });
+
+    // Paspaudus už laukelio ribų – paslėpti meniu
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target) && e.target !== input) {
+            menu.style.display = 'none';
+        }
+    });
+</script>
 {% endblock %}

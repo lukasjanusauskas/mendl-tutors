@@ -6,7 +6,7 @@ Tutor can be:
 - update fields (email)
 """
 
-from .utils import (
+from api.utils import (
     serialize_doc,
     parse_date_of_birth
 )
@@ -17,7 +17,7 @@ from pymongo.results import (
     DeleteResult
 )
 
-from .connection import get_db
+from api.connection import get_db
 import re
 from bson import ObjectId
 

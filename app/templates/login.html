@@ -3,26 +3,34 @@
 {% block title %}Prisijungimas{% endblock %}
 
 {% block content %}
-<h1>Prisijungimas</h1>
+<div class="container mt-5 mb-5" style="max-width: 500px;">
+    <h1 class="text-center mb-4">Prisijungimas</h1>
 
-{% if error %}
-    <p>Klaida: {{ error }}</p>
-{% endif %}
+    {% if error %}
+        <div class="alert alert-danger text-center">{{ error }}</div>
+    {% endif %}
 
-<form method="POST" action="{{ url_for('login') }}">
-    <p>
-        <label for="email">El. paštas:</label><br>
-        <input type="email" id="email" name="email" required>
-    </p>
-    
-    <p>
-        <label for="password">Slaptažodis:</label><br>
-        <input type="password" id="password" name="password" required>
-    </p>
-    
-    <p>
-        <input type="submit" value="Prisijungti">
-    </p>
-</form>
+    <form method="POST" action="{{ url_for('login') }}" class="shadow-sm p-4 border rounded-3 bg-light">
+        <div class="mb-3">
+            <label for="email" class="form-label">El. paštas:</label>
+            <input type="email" id="email" name="email" class="form-control" required>
+        </div>
 
+        <div class="mb-3">
+            <label for="password" class="form-label">Slaptažodis:</label>
+            <input type="password" id="password" name="password" class="form-control" required>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary px-5 py-2">Prisijungti</button>
+        </div>
+
+        <div class="text-center mt-3">
+            <small>Neturite paskyros?
+                <a href="{{ url_for('sign_up_student') }}" class="text-decoration-none">Studentas</a> |
+                <a href="{{ url_for('sign_up_tutor') }}" class="text-decoration-none">Korepetitorius</a>
+            </small>
+        </div>
+    </form>
+</div>
 {% endblock %}
