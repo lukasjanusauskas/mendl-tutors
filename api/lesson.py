@@ -54,7 +54,7 @@ def create_lesson(
             lesson["class"] = student['class']
 
         elif lesson["class"] != student['class']:
-            raise ValueError("Mokiniu klases nera vienodos, jie vienoje pamokoje nnegali buti")
+            raise ValueError("Mokiniu klases nera vienodos, jie vienoje pamokoje negali buti")
 
         # Atrinkti informacija
         lesson['students'].append({
@@ -81,11 +81,12 @@ def create_lesson(
     }
 
     for student_id in lesson['student_ids']:
-        if student_id not in student_ids_tutor.keys():
+        if str(student_id) not in student_ids_tutor.keys():
             raise ValueError(f'Vienas is mokiniu nepriklauso korepetitoriui')
 
         # Patikrinti, ar korepetitorius mokina mokini sito dalyko
         student_of_tutor = student_ids_tutor[student_id]
+        print(student_of_tutor)
         if student_of_tutor != lesson_info['subject']:
             raise ValueError(f'Mokinio {student["first_name"]} {student["last_name"]} korepetitorius(-ė) {lesson_info["subject"]} nemokina')
 
@@ -240,7 +241,9 @@ def list_lessons_tutor_week(
             '_id': str(lesson_doc['_id']),
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
             'students': students,
-            'link': lesson_doc['link']
+            'link': lesson_doc['link'],
+            "subject": lesson_doc['subject'],
+            'class': lesson_doc['class']
         })
 
     return lessons
@@ -285,7 +288,9 @@ def list_lessons_tutor_month(
             '_id': str(lesson_doc['_id']),
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
             'students': students,
-            'link': lesson_doc['link']
+            'link': lesson_doc['link'],
+            "subject": lesson_doc['subject'],
+            'class': lesson_doc['class']
         })
 
         if 'type' in lesson_doc:
@@ -554,3 +559,27 @@ if __name__ == "__main__":
     lesson_collection = db['lesson']
     student_collection = db['student']
     tutor_collection = db['tutor']
+
+    required_arguments = [
+        'time',
+        'tutor_id', 
+        'student_ids',
+        'subject'
+    ]
+
+    for i in range(20, 30, 7):
+
+        create_lesson(
+            db['lesson'],
+            db['tutor'],
+            db['student'],
+            lesson_info={
+                'time': f'2025-10-{i} 20:00',
+                'tutor_id': '68e3990e21bfd5827226641c',
+                'student_ids': [
+                    '68e626bd75a1f6c545a301ab',
+                    #'68e5780458df270a93135cd6'
+                ],
+                'subject': 'Muzika'
+            }
+        )
