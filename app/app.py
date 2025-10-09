@@ -143,8 +143,7 @@ def add_student():
                 "password": request.form["password"]
             }
 
-            if "student_email" in request.form:
-                data["student_email"] = request.form["student_email"]
+            data = {k: v for k, v in data.items() if v not in [None, ""]}
 
             create_new_student(db.student, data)
             flash("Mokinys sėkmingai pridėtas!", "success")
