@@ -21,8 +21,6 @@ from api.connection import get_db
 import re
 from bson import ObjectId
 
-
-
 def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
     """
     Sukurti korepetitoriu ir įrašyti į duombazę.
@@ -117,11 +115,11 @@ def assign_student_to_tutor(
 
     # 4️⃣ Patikrinti ar studentas jau priskirtas prie sio subject
     already_assigned = any(
-        s.get("student_id") == str(student["_id"]) and s.get("subject") == subject
+        s.get("student", {}).get("student_id") == str(student["_id"]) and s.get("subject") == subject
         for s in tutor.get("students_subjects", [])
     )
     if already_assigned:
-        raise ValueError("Studentas jau priskirtas prie sio dalyko")
+        raise ValueError("Studentas jau priskirtas prie šio dalyko")
 
     # 5️⃣ Sukurti įrašą studentui su class
     student_entry = {
@@ -142,8 +140,6 @@ def assign_student_to_tutor(
     )
 
     return update_result
-
-from bson import ObjectId
 
 def get_tutor_students(tutor_collection, tutor_id: str) -> list[dict]:
     """
