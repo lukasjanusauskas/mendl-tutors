@@ -3,6 +3,8 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import hashlib
 import traceback
+
+from datetime import datetime
 import os
 import re
 
@@ -41,7 +43,14 @@ from api.aggregates import (
 )
 
 from api.lesson import (
-    list_lessons_student_week
+    list_lessons_student_week,
+    list_lessons_tutor_week,
+    change_lesson_time_student,
+    delete_lesson,
+    create_lesson,
+    change_lesson_date,
+    delete_student_from_lesson,
+    list_lessons_tutor_month
 )
 
 load_dotenv()
@@ -159,6 +168,11 @@ def delete_student_ui(student_id):
             flash(str(e), "danger")
 
     return redirect(url_for("students"))
+
+
+@app.route('/sign-up', methods=['GET'])
+def sign_up_all():
+    return render_template("sign_up_all.html")
 
 
 @app.route('/sign-up-student', methods=['GET', 'POST'])
@@ -599,6 +613,45 @@ def revoke_review_dialog_student(review_id, student_id):
                            review=review,
                            review_id=review_id,
                            student_id=student_id)
+
+
+# @app.route("/tutor/manage_lessons/<tutor_id>", methods=['GET'])
+# def manage_lessons(tutor_id):
+#     list_lessons = list_lessons_tutor_month(
+#         db['lesson'],
+#         db['tutor'],
+#         tutor_id,
+#         year=str(datetime.now().year),
+#         month=str(datetime.now().month)
+#     )
+
+#     print(list_lessons)
+
+#     return render_template(
+#         'lesson_main.html',
+#         tutor_id=tutor_id,
+#         lessons=list_lessons
+#     )
+
+
+# @app.route("/tutor/create_lesson/<tutor_id>", methods=["GET", "POST"])
+# def create_lesson(tutor_id):
+#     pass
+
+
+# @app.route("/tutor/detail_lesson/<lesson_id>", methods=["GET", "POST"])
+# def lesson_detail(lesson_id):
+#     pass
+
+
+# @app.route("/tutor/delete_lesson/<lesson_id>", methods=["GET", "POST"])
+# def delete_lesson(lesson_id):
+#     pass
+
+
+# @app.route("/tutor/edit_lesson/<lesson_id>", methods=["GET", "POST"])
+# def edit_lesson(lesson_id):
+#     pass
 
 
 if __name__ == '__main__':
