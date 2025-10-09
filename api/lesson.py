@@ -54,7 +54,7 @@ def create_lesson(
             lesson["class"] = student['class']
 
         elif lesson["class"] != student['class']:
-            raise ValueError("Mokiniu klases nera vienodos, jie vienoje pamokoje nnegali buti")
+            raise ValueError("Mokiniu klases nera vienodos, jie vienoje pamokoje negali buti")
 
         # Atrinkti informacija
         lesson['students'].append({
@@ -86,6 +86,7 @@ def create_lesson(
 
         # Patikrinti, ar korepetitorius mokina mokini sito dalyko
         student_of_tutor = student_ids_tutor[student_id]
+        print(student_of_tutor)
         if student_of_tutor != lesson_info['subject']:
             raise ValueError(f'Mokinio {student["first_name"]} {student["last_name"]} korepetitorius(-ė) {lesson_info["subject"]} nemokina')
 

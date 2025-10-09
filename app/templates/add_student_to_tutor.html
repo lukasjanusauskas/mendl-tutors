@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Pridėti mokinį - {{ tutor.first_name }} {{ tutor.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    
+    {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <!-- Korepetitoriaus informacija -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="me-3">
+                    <i class="bi bi-person-circle fs-2 text-primary"></i>
+                </div>
+                <div>
+                    <h2 class="h4 mb-1">{{ tutor.first_name }} {{ tutor.second_name or "" }} {{ tutor.last_name }}</h2>
+                    <p class="text-muted mb-0">Pridėti mokinį prie korepetitoriaus</p>
+                </div>
+            </div>
+
+            <!-- Dalykai, kuriuos moko -->
+            {% if tutor.subjects %}
+                <div class="mb-0">
+                    <strong>Dėstomi dalykai:</strong>
+                    {% for subject in tutor.subjects %}
+                        <span class="badge bg-primary me-2">{{ subject.subject }} (iki {{ subject.max_class }} kl.)</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body p-5">
+            <h3 class="h5 mb-4">
+                <i class="bi bi-person-plus"></i> Priskirti mokinį
+            </h3>
+
+            <form method="POST">
+                <div class="row g-4">
+                    <!-- Mokinio pasirinkimas -->
+                    <div class="col-md-6">
+                        <label for="student_id" class="form-label fw-bold">Mokinys <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-lg" id="student_id" name="student_id" required>
+                            <option value="">Pasirinkite mokinį...</option>
+                            {% for student in students %}
+                                <option value="{{ student._id }}" data-class="{{ student.class or 'N/A' }}">
+                                    {{ student.first_name }} {{ student.last_name }} 
+                                    {% if student.class %} ({{ student.class }} klasė){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Pasirinkite mokinį, kurį norite priskirti prie šio korepetitoriaus.</div>
+                    </div>
+
+                    <!-- Dalyko pasirinkimas -->
+                    <div class="col-md-6">
+                        <label for="subject" class="form-label fw-bold">Dalykas <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-lg" id="subject" name="subject" required>
+                            <option value="">Pasirinkite dalyką...</option>
+                            {% for subject in tutor.subjects %}
+                                <option value="{{ subject.subject }}">{{ subject.subject }} (iki {{ subject.max_class }} klasės)</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Pasirinkite dalyką, kurį korepetitorius dėstys šiam mokiniui.</div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-3 mt-5">
+                    <button type="submit" class="btn btn-success btn-lg px-4">
+                        <i class="bi bi-check-circle"></i> Priskirti mokinį
+                    </button>
+                    <a href="{{ url_for('view_tutor', tutor_id=tutor._id) }}" class="btn btn-outline-secondary btn-lg px-4">
+                        <i class="bi bi-arrow-left"></i> Atšaukti
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Informacija -->
+    <div class="alert alert-info mt-4" role="alert">
+        <div class="d-flex">
+            <div class="me-2">
+                <i class="bi bi-info-circle"></i>
+            </div>
+            <div>
+                <strong>Pastaba:</strong> Mokinys bus priskirtas tik pasirinktam dalykui. 
+                Jei mokinys jau yra priskirtas šiam dalykui, gausite klaidos pranešimą.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
+
+<script>
+// Paprasta validacija, kad būtų pasirinktas ir mokinys, ir dalykas
+document.querySelector('form').addEventListener('submit', function(e) {
+    const studentId = document.getElementById('student_id').value;
+    const subject = document.getElementById('subject').value;
+    
+    if (!studentId || !subject) {
+        e.preventDefault();
+        alert('Prašome pasirinkti ir mokinį, ir dalyką.');
+    }
+});
+</script>
+{% endblock %}
