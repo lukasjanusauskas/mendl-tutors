@@ -40,6 +40,10 @@ from api.aggregates import (
     get_tutor_review_count
 )
 
+from api.lesson import (
+    list_lessons_student_week
+)
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -61,7 +65,6 @@ def students():
         students_list = get_students_by_name(db["student"], first_name, last_name)
     else:
         students_list = get_all_students(db["student"])
-
 
     if first_name is None:
         return render_template("students.html", students=students_list, first_name="Vardas", last_name="Pavardė")
@@ -87,6 +90,16 @@ def view_student(student_id):
         if pay:
             student['pay'] = pay
 
+        lessons = []
+        try:
+            lessons = list_lessons_student_week(
+                db["lesson"],
+                db["student"], 
+                str(student['_id'])
+            )
+        except Exception as lesson_e:
+            print(f"Error fetching lessons: {lesson_e}")
+
         for t in tutors_cursor:
             tutors.append({
                 "first_name": t.get("first_name", ""),
@@ -96,10 +109,10 @@ def view_student(student_id):
                     [s.get("subject", "") for s in t.get("subjects", [])]
                 )
             })
-        return render_template("student.html", student=student, tutors=tutors)
+        return render_template("student.html", student=student, tutors=tutors, lessons=lessons)
     except Exception as e:
         traceback.print_exc()
-        return render_template("student.html", student=None, tutors=None, error=str(e))
+        return render_template("student.html", student=None, tutors=None, lessons=[], error=str(e))
 
 
 @app.route("/student/add", methods=["GET", "POST"])

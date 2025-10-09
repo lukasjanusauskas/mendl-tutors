@@ -1,8 +1,8 @@
-from utils import (
+from api.utils import (
     parse_time_of_lesson,
     generate_lesson_id_link
 )
-from connection import get_db
+from api.connection import get_db
 from pymongo.results import InsertOneResult
 from bson import ObjectId
 from datetime import timedelta, datetime

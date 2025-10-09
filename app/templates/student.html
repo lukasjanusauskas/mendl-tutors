@@ -98,6 +98,36 @@
             <p class="text-muted">Mokinys šiuo metu neturi priskirtų korepetitorių.</p>
         {% endif %}
 
+        <h3 class="mt-4">Pamokos šią savaitę</h3>
+        {% if lessons %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Data ir laikas</th>
+                            <th>Korepetitorius</th>
+                            <th>Mokiniai</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lesson in lessons %}
+                        <tr>
+                            <td>{{ lesson.time }}</td>
+                            <td>{{ lesson.tutor_first_name }} {{ lesson.tutor_last_name }}</td>
+                            <td>
+                                {% for student in lesson.students %}
+                                    {{ student.first_name }} {{ student.last_name }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted">Mokinys šią savaitę pamokų neturi.</p>
+        {% endif %}
+
     {% else %}
         <p class="text-muted">Mokinys nerastas.</p>
     {% endif %}
