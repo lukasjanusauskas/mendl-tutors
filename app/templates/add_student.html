@@ -50,13 +50,58 @@
         <label class="form-label">Mokinio tel (nebūtinas)</label>
         <input type="text" class="form-control" name="student_phone_number">
     </div>
-    <div class="col-md-4 mb-3">
-        <label class="form-label">Dalykai (atskirkite kableliais)</label>
-        <input type="text" class="form-control" name="subjects" placeholder="Matematika, Fizika" required>
+    <div class="col-md-4 mb-3 position-relative">
+        <label class="form-label">Dalykai</label>
+        <input type="text" class="form-control" id="subjectsInput" name="subjects" readonly required placeholder="Pasirinkite dalykus">
+
+        <!-- Iššokantis meniu -->
+        <div id="subjectsMenu" class="border rounded bg-white shadow p-2 position-absolute w-100" style="display:none; z-index:1000; max-height:200px; overflow-y:auto;">
+            <div><input type="checkbox" value="Matematika"> Matematika</div>
+            <div><input type="checkbox" value="Fizika"> Fizika</div>
+            <div><input type="checkbox" value="Chemija"> Chemija</div>
+            <div><input type="checkbox" value="Biologija"> Biologija</div>
+            <div><input type="checkbox" value="Lietuvių kalba"> Lietuvių kalba</div>
+            <div><input type="checkbox" value="Anglų kalba"> Anglų kalba</div>
+            <div><input type="checkbox" value="Istorija"> Istorija</div>
+            <div><input type="checkbox" value="Geografija"> Geografija</div>
+            <div><input type="checkbox" value="Informatika"> Informatika</div>
+        </div>
     </div>
 </div>
 
 <button type="submit" class="btn btn-primary">Pridėti</button>
 <a href="{{ url_for('students') }}" class="btn btn-secondary">Atgal</a>
 </form>
+
+<script>
+    const input = document.getElementById('subjectsInput');
+    const menu = document.getElementById('subjectsMenu');
+    const checkboxes = menu.querySelectorAll('input[type=checkbox]');
+
+    // Rodyti meniu paspaudus ant laukelio
+    input.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Atnaujinti pasirinkimus
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            const selected = Array.from(checkboxes)
+                .filter(c => c.checked)
+                .map(c => c.value)
+                .join(', ');
+            input.value = selected;
+        });
+    });
+
+    // Paspaudus už laukelio ribų – paslėpti meniu
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target) && e.target !== input) {
+            menu.style.display = 'none';
+        }
+    });
+</script>
+
 {% endblock %}
+
