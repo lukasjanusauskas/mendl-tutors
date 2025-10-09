@@ -5,6 +5,7 @@ import hashlib
 import traceback
 
 from datetime import datetime
+from bson import ObjectId
 import os
 import re
 
@@ -46,7 +47,7 @@ from api.lesson import (
     list_lessons_student_week,
     list_lessons_tutor_week,
     change_lesson_time_student,
-    delete_lesson,
+    delete_lesson as func_delete_lesson,
     create_lesson,
     change_lesson_date,
     delete_student_from_lesson,
@@ -615,43 +616,96 @@ def revoke_review_dialog_student(review_id, student_id):
                            student_id=student_id)
 
 
-# @app.route("/tutor/manage_lessons/<tutor_id>", methods=['GET'])
-# def manage_lessons(tutor_id):
-#     list_lessons = list_lessons_tutor_month(
-#         db['lesson'],
-#         db['tutor'],
-#         tutor_id,
-#         year=str(datetime.now().year),
-#         month=str(datetime.now().month)
-#     )
+@app.route("/tutor/manage_lessons/<tutor_id>", methods=['GET'])
+def manage_lessons(tutor_id):
+    list_lessons = list_lessons_tutor_month(
+        db['lesson'],
+        db['tutor'],
+        tutor_id,
+        year=str(datetime.now().year),
+        month=str(datetime.now().month)
+    )
 
-#     print(list_lessons)
-
-#     return render_template(
-#         'lesson_main.html',
-#         tutor_id=tutor_id,
-#         lessons=list_lessons
-#     )
+    return render_template(
+        'lesson_main.html',
+        tutor_id=tutor_id,
+        lessons=list_lessons
+    )
 
 
-# @app.route("/tutor/create_lesson/<tutor_id>", methods=["GET", "POST"])
-# def create_lesson(tutor_id):
-#     pass
+@app.route("/tutor/change_lesson_time/<lesson_id>/<tutor_id>", methods=["POST"])
+def change_lesson_time(lesson_id, tutor_id):
+    date = request.form.get("date")
+    time = request.form.get("time")
+
+    try:
+        new_time = f"{date} {time:0>{2}}:00"
+        change_lesson_date(db['lesson'], lesson_id, new_time)
+
+        flash(f"Sėkmingai perkelta pamoka", "success")
+    except Exception as e:
+        flash(f'Nepavyko perkelti pamokos {e}', 'warning')
+
+    return redirect( url_for('manage_lessons', tutor_id=tutor_id) )
 
 
-# @app.route("/tutor/detail_lesson/<lesson_id>", methods=["GET", "POST"])
-# def lesson_detail(lesson_id):
-#     pass
+@app.route("/tutor/create_lesson/<tutor_id>", methods=["GET", "POST"])
+def create_new_lesson(tutor_id):
+    if request.method == "POST":
+        # Get request data
+        date_of_lesson = request.form.get('date')
+        hour = request.form.get('hour')
+        student_ids = request.form.getlist('student_ids[]')
+        subject = request.form.get('subject')
+
+        # Post the lesson
+        try:
+            create_lesson(
+                db['lesson'],
+                db['tutor'],
+                db['student'],
+                lesson_info={
+                    'time': f'{date_of_lesson} {hour:0>{2}}:00',
+                    'tutor_id': tutor_id,
+                    'student_ids': student_ids,
+                    'subject': subject,
+                }
+            )
+
+        except Exception as e:
+            traceback.print_exc()
+            flash(f"Nepavyko sukurti pamokos: {e}", "alert")
+            return redirect( url_for('create_new_lesson', tutor_id=tutor_id) )
+
+        flash(f"Pavyko sukurti pamoką", "success")
+        return redirect( url_for('manage_lessons', tutor_id=tutor_id) )
+
+    else:
+        # Get list of students
+        students = get_tutor_students(db['tutor'], tutor_id=tutor_id)
+
+        # Show template
+        return render_template('create_lesson.html', tutor_id=tutor_id, students=students)
+    
 
 
-# @app.route("/tutor/delete_lesson/<lesson_id>", methods=["GET", "POST"])
-# def delete_lesson(lesson_id):
-#     pass
+@app.route("/tutor/delete_lesson/<lesson_id>/<tutor_id>", methods=["GET", "POST"])
+def delete_lesson(lesson_id, tutor_id):
+
+    try:
+        func_delete_lesson(db['lesson'], lesson_id)
+        flash(f"Pavyko panaikinti pamoką", "success")
+    except Exception as e:
+        flash(f"Nepavyko ištrinti pamokos: {e}", "warning")
+
+    return redirect(url_for("manage_lessons", tutor_id=tutor_id))
 
 
-# @app.route("/tutor/edit_lesson/<lesson_id>", methods=["GET", "POST"])
-# def edit_lesson(lesson_id):
-#     pass
+@app.route("/tutor/edit_lesson/<lesson_id>/<tutor_id>", methods=["GET", "POST"])
+def edit_lesson(lesson_id, tutor_id):
+    lesson = db['lesson'].find_one({'_id': ObjectId(lesson_id)})
+
+    return render_template("edit_lesson.html", lesson=lesson, tutor_id=tutor_id)
 
 
 if __name__ == '__main__':

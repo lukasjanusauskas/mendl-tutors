@@ -40,7 +40,7 @@ def create_lesson(
         raise ValueError('Laikas persidengia korepetitoriui')
 
     lesson['students'] = []
-    for student_id in lesson['student_ids']:
+    for student_id in lesson_info['student_ids']:
 
         # Patikrinti ar egzistuoja
         student_id = ObjectId(student_id)
@@ -81,7 +81,7 @@ def create_lesson(
     }
 
     for student_id in lesson['student_ids']:
-        if student_id not in student_ids_tutor.keys():
+        if str(student_id) not in student_ids_tutor.keys():
             raise ValueError(f'Vienas is mokiniu nepriklauso korepetitoriui')
 
         # Patikrinti, ar korepetitorius mokina mokini sito dalyko
@@ -161,7 +161,7 @@ def change_lesson_date(
 
     # Patikrinti, ar pamokos tuo metu nera korepetitoriui ar vienam is mokiniu
     tutor_lesson_same_time = lesson_collection.find_one({
-        'tutor_id': ObjectId(lesson_doc['tutor_id']),
+        'tutor_id': ObjectId(lesson_doc['tutor']['tutor_id']),
         'time': time_parsed
     })
 
@@ -240,7 +240,9 @@ def list_lessons_tutor_week(
             '_id': str(lesson_doc['_id']),
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
             'students': students,
-            'link': lesson_doc['link']
+            'link': lesson_doc['link'],
+            "subject": lesson_doc['subject'],
+            'class': lesson_doc['class']
         })
 
     return lessons
@@ -281,15 +283,18 @@ def list_lessons_tutor_month(
             for stud in lesson_doc['students']
         ]
 
+        if 'type' in lesson_doc:
+            if lesson_doc['type'] != 'ACTIVE':
+                continue
+
         lessons.append({
             '_id': str(lesson_doc['_id']),
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
             'students': students,
-            'link': lesson_doc['link']
+            'link': lesson_doc['link'],
+            "subject": lesson_doc['subject'],
+            'class': lesson_doc['class']
         })
-
-        if 'type' in lesson_doc:
-            lessons[-1] = lessons[-1] | {"type": lesson_doc["type"]}
 
     return lessons
 
@@ -554,3 +559,26 @@ if __name__ == "__main__":
     lesson_collection = db['lesson']
     student_collection = db['student']
     tutor_collection = db['tutor']
+
+    required_arguments = [
+        'time',
+        'tutor_id', 
+        'student_ids',
+        'subject'
+    ]
+
+    for i in range(13, 30, 7):
+
+        create_lesson(
+            db['lesson'],
+            db['tutor'],
+            db['student'],
+            lesson_info={
+                'time': f'2025-10-{i} 15:00',
+                'tutor_id': '68e3cedf7249569216674679',
+                'student_ids': [
+                    '68dfe5e166fb223bfcdd8807'
+                ],
+                'subject': 'Matematika'
+            }
+        )

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Redaguoti pamoką{% endblock %}
+{% block content %}
+
+<div class="container mt-4">
+  <h3 class="mb-4">Redaguoti pamoką</h3>
+
+    <!-- LESSON INFO -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Keisti laiką</h5>
+            <form action="{{ url_for('change_lesson_time', lesson_id=lesson._id, tutor_id=tutor_id) }}" method="POST"
+                onsubmit="return confirm('Ar tikrai perkelti pamoką?');">
+                <div class="col-md-6 w-100">
+                    <label class="form-label">Data</label>
+                    <input type="date" name="date" class="form-control" required>
+                    <label class="form-label mt-2">Valanda</label>
+                    <input type="number" name="time" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-success w-100 mt-4" title="Perkelti pamoką">
+                    Perkelti pamoką
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.subject-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', e => {
+        const select = e.target.closest('.subject-item').querySelector('.subject-class-select');
+        select.disabled = !e.target.checked;
+      });
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.subject-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', e => {
+        const select = e.target.closest('.subject-item').querySelector('.subject-class-select');
+        select.disabled = !e.target.checked;
+      });
+    });
+  });
+</script>
+{% endblock %}

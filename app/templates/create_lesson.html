@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Pamokos registravimas:{% endblock %}
+
+{% block content %}
+
+<!-- Include Choices.js CSS and JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<body>
+    <div class="container my-3">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-header bg-success text-white">
+                        <h2 class="mb-0"><i class="bi bi-calendar-plus"></i> Sukurti naują pamoką</h2>
+                    </div>
+                    <div class="card-body">
+
+                        <form action="{{ url_for('create_new_lesson', tutor_id=tutor_id) }}" method="POST" onsubmit="return confirm('Ar tikrai norite sukurti šią pamoką?');">
+    
+                            <!-- Student Selection (Multi-select with checkboxes) -->
+                            <div class="mb-3">
+                                <label for="student_ids" class="form-label">
+                                    <i class="bi bi-people"></i> Mokiniai
+                                </label>
+                                <select class="form-select" id="student_ids" name="student_ids[]" multiple required>
+                                    {% for student in students %}
+                                    <option value="{{ student.student_id }}">{{ student.first_name }} {{ student.last_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> Pasirinkite vieną ar kelis mokinius iš sąrašo
+                                </small>
+                            </div>
+
+                            <!-- Subject Selection -->
+                            <div class="mb-3">
+                                <label for="subject" class="form-label">
+                                    <i class="bi bi-book"></i> Dalykas
+                                </label>
+                                <select class="form-select" id="subject" name="subject" required>
+                                    <option value="" selected disabled>Pasirinkite dalyką...</option>
+                                    <option value="Matematika">Matematika</option>
+                                    <option value="Lietuviu">Lietuvių kalba</option>
+                                    <option value="Anglu">Anglų kalba</option>
+                                    <option value="Fizika">Fizika</option>
+                                    <option value="Chemija">Chemija</option>
+                                    <option value="Biologija">Biologija</option>
+                                    <option value="Istorija">Istorija</option>
+                                    <option value="Geografija">Geografija</option>
+                                    <option value="Informatika">Informatika</option>
+                                </select>
+                            </div>
+
+                            <!-- Date and Time Row -->
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="date" class="form-label">
+                                        <i class="bi bi-calendar-event"></i> Data
+                                    </label>
+                                    <input type="date" class="form-control" id="date" name="date" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="hour" class="form-label">
+                                        <i class="bi bi-clock"></i> Valanda
+                                    </label>
+                                    <input type="number" class="form-control" id="hour" name="hour" min="0" max="23" required>
+                                    <small class="text-muted">Įveskite valandą (0–23)</small>
+                                </div>
+                            </div>
+
+                            <!-- Buttons -->
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a href="{{ url_for('manage_lessons', tutor_id=tutor_id) }}" class="btn btn-secondary">
+                                    <i class="bi bi-x-circle"></i> Atšaukti
+                                </a>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-circle"></i> Sukurti pamoką
+                                </button>
+                            </div>
+                        </form>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Set minimum date to today
+        document.getElementById('date').min = new Date().toISOString().split('T')[0];
+    </script>
+
+    <!-- Initialize Choices.js -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const studentSelect = document.getElementById('student_ids');
+        new Choices(studentSelect, {
+            removeItemButton: true,
+            placeholderValue: 'Pasirinkite mokinius...',
+            searchPlaceholderValue: 'Ieškoti mokinio...',
+            noResultsText: 'Mokinys nerastas',
+            noChoicesText: 'Nėra galimų pasirinkimų',
+            itemSelectText: '',
+            shouldSort: false
+        });
+    });
+    </script>                    
+
+</body>
+{% endblock %}
