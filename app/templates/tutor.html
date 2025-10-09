@@ -80,6 +80,9 @@
                 <a href="{{ url_for('add_new_review_tutor', tutor_id=tutor._id) }}" class="btn btn-outline-success flex-grow-1">
                     <i class="bi bi-pencil-square"></i> Palikti atsiliepimą
                 </a>
+                <a href="{{ url_for('add_student_to_tutor', tutor_id=tutor._id) }}" class="btn btn-outline-info flex-grow-1">
+                    <i class="bi bi-person-plus"></i> Pridėti mokinį
+                </a>
                 <a href="{{ url_for('manage_lessons', tutor_id=tutor._id) }}" class="btn btn-outline-info flex-grow-1">
                     <i class="bi bi-calendar"></i> Valdyti pamokas
                 </a>

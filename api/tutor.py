@@ -143,16 +143,6 @@ def assign_student_to_tutor(
 
     return update_result
 
-    # 6️⃣ Pridėti prie tutor.students_subjects
-    update_result = tutor_collection.update_one(
-        {"_id": ObjectId(tutor_id)},
-        {
-            "$push": {"students_subjects": student_entry},
-        }
-    )
-
-    return update_result
-
 from bson import ObjectId
 
 def get_tutor_students(tutor_collection, tutor_id: str) -> list[dict]:

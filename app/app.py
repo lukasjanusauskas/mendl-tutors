@@ -14,7 +14,8 @@ from api.tutor import (
     get_all_tutors,
     delete_tutor,
     create_new_tutor,
-    get_tutors_by_name
+    get_tutors_by_name,
+    assign_student_to_tutor
 )
 from api.student import (
     get_students_tutors,
@@ -543,6 +544,44 @@ def show_reviews_tutor(tutor_id):
                            written_reviews=written_reviews,
                            recieved_reviews=recieved_reviews)
 
+@app.route("/tutor/<tutor_id>/add_student", methods=["GET", "POST"])
+def add_student_to_tutor(tutor_id):
+    try:
+        tutor = get_tutor_by_id(db.tutor, tutor_id)
+        if not tutor:
+            flash("Korepetitorius nerastas.", "danger")
+            return redirect(url_for("tutors"))
+
+        if request.method == "POST":
+            student_id = request.form.get("student_id")
+            subject = request.form.get("subject")
+
+            try:
+                result = assign_student_to_tutor(
+                    db.tutor,
+                    db.student, 
+                    tutor_id,
+                    student_id,
+                    subject
+                )
+                
+                if result.modified_count > 0:
+                    flash("Mokinys sėkmingai priskirtas!", "success")
+                    return redirect(url_for("view_tutor", tutor_id=tutor_id))
+                else:
+                    flash("Nepavyko priskirti mokinio.", "danger")
+                    
+            except Exception as e:
+                flash(f"Klaida: {str(e)}", "danger")
+
+        students = get_all_students(db.student)
+        return render_template("add_student_to_tutor.html", 
+                             tutor=tutor, 
+                             students=students)
+
+    except Exception as e:
+        flash(f"Klaida: {str(e)}", "danger")
+        return redirect(url_for("view_tutor", tutor_id=tutor_id))
 
 @app.route('/student/<student_id>/review_list', methods=['GET'])
 def show_reviews_student(student_id):
@@ -615,23 +654,23 @@ def revoke_review_dialog_student(review_id, student_id):
                            student_id=student_id)
 
 
-# @app.route("/tutor/manage_lessons/<tutor_id>", methods=['GET'])
-# def manage_lessons(tutor_id):
-#     list_lessons = list_lessons_tutor_month(
-#         db['lesson'],
-#         db['tutor'],
-#         tutor_id,
-#         year=str(datetime.now().year),
-#         month=str(datetime.now().month)
-#     )
+@app.route("/tutor/manage_lessons/<tutor_id>", methods=['GET'])
+def manage_lessons(tutor_id):
+    list_lessons = list_lessons_tutor_month(
+        db['lesson'],
+        db['tutor'],
+        tutor_id,
+        year=str(datetime.now().year),
+        month=str(datetime.now().month)
+    )
 
-#     print(list_lessons)
+    print(list_lessons)
 
-#     return render_template(
-#         'lesson_main.html',
-#         tutor_id=tutor_id,
-#         lessons=list_lessons
-#     )
+    return render_template(
+        'lesson_main.html',
+        tutor_id=tutor_id,
+        lessons=list_lessons
+    )
 
 
 # @app.route("/tutor/create_lesson/<tutor_id>", methods=["GET", "POST"])
