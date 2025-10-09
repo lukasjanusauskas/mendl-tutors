@@ -1,57 +1,63 @@
 {% extends "base.html" %}
 
-{% block title %}Parašyti atsiliepimą studentui{% endblock %}
+{% block title %}Mėnesio atsiliepimai{% endblock %}
 
 {% block content %}
+<div class="container py-4">
 
-<div class="container">
-    <h2>Mėnesio atsiliepimai</h2>
+    <h2 class="mb-4 text-center">📅 Atsiliepimai</h2>
 
-    <h3>Gauti atsiliepimai</h3>
-    <hr>
-    {% if recieved_reviews %}
-    {% for review_id, review in recieved_reviews %}
-        <table class="w-100 table table-striped my-3">
-        <tbody>
-            {% for key, review_data in review.items() %}
-            <tr>
-                <td style="width: 20%">{{ key }}</td>
-                <td>{{ review_data }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    {% endfor %}
-    {% else %}
-        <p>Dar negavote atsiliepimų.</p>
-    {% endif %}
+    <!-- GAUTI ATSILIEPIMAI -->
+    <div class="card shadow-sm mb-5">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Gauti atsiliepimai</h4>
+            <span class="badge bg-light text-success">{{ recieved_reviews|length }}</span>
+        </div>
+        <div class="card-body">
+            {% if recieved_reviews %}
+                {% for review_id, review in recieved_reviews %}
+                    <div class="card mb-3 border-success-subtle">
+                        <div class="card-body">
+                            {% for key, review_data in review.items() %}
+                                <p><strong>{{ key }}:</strong> {{ review_data }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted fst-italic">Dar negavote atsiliepimų.</p>
+            {% endif %}
+        </div>
+    </div>
 
-    <h3>Parašyti atsiliepimai</h3>
-    <hr>
-    {% if recieved_reviews %}
-    {% for review_id, review in written_reviews %}
-        <table class="w-100 table table-striped my-3">
-            <tbody>
-            {% for key, review_data in review.items() %}
-            <tr>
-                <td style="width: 20%">{{ key }}</td>
-                <td>{{ review_data }}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <!-- PARAŠYTI ATSILIEPIMAI -->
+    <div class="card shadow-sm mb-5">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Parašyti atsiliepimai</h4>
+            <span class="badge bg-light text-primary">{{ written_reviews|length }}</span>
+        </div>
+        <div class="card-body">
+            {% if written_reviews %}
+                {% for review_id, review in written_reviews %}
+                    <div class="card mb-3 border-primary-subtle">
+                        <div class="card-body">
+                            {% for key, review_data in review.items() %}
+                                <p><strong>{{ key }}:</strong> {{ review_data }}</p>
+                            {% endfor %}
+                            <div class="text-end mt-3">
+                                <a class="btn btn-outline-danger btn-sm"
+                                   href="{{ url_for('revoke_review_dialog_tutor', review_id=review_id, tutor_id=tutor_id) }}">
+                                    🗑️ Atsiimti atsiliepimą
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted fst-italic">Jūs dar neparašėte atsiliepimų.</p>
+            {% endif %}
+        </div>
+    </div>
 
-        <a class="btn btn-danger" href="{{ url_for('revoke_review_dialog_tutor', review_id=review_id, tutor_id=tutor_id) }}">
-            Atsiimti atsiliepimą
-        </a>
-
-        <hr>
-    {% endfor %}
-    {% else %}
-        <p>Jums dar niekas neparašė atsiliepimų.</p>
-    {% endif %}
-
-    <!-- <button type="button" class="btn btn-danger">Atsiimti atsiliepimą</button> -->
 </div>
-
 {% endblock %}
