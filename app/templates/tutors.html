@@ -1,14 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Korepetitoriai - MENDL{% endblock %}
-
+{% block title %}Korepetitoriai{% endblock %}
 {% block content %}
 <div class="container py-4">
 
-    <h2 class="mb-4 text-center fw-bold text-primary">
-        👨‍🏫 Korepetitorių sąrašas
-    </h2>
+<h2 class="mb-4 text-center fw-bold text-primary">👩🏻‍🏫📚 Korepetitorių sąrašas</h2>
 
-    <!-- 🔍 Paieškos forma -->
+<!-- 🔍 Paieškos forma -->
     <form method="GET" action="{{ url_for('tutors') }}" class="card shadow-sm border-0 p-4 mb-4 bg-light">
         <div class="row g-3 justify-content-center align-items-end">
             <div class="col-md-4">
@@ -37,70 +34,58 @@
         </div>
     </form>
 
-    <!-- Mygtukas pridėti naują korepetitorių -->
-    <div class="d-flex justify-content-end mb-3">
-        <a href="{{ url_for('add_tutor') }}" class="btn btn-success shadow-sm fw-semibold">
-            <i class="bi bi-plus-circle me-1"></i> Pridėti korepetitorių
-        </a>
-    </div>
-
-    {% if error %}
-    <div class="alert alert-danger shadow-sm">{{ error }}</div>
-    {% endif %}
-
-    {% if tutors %}
-    <div class="card shadow-sm border-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-primary text-center">
-                    <tr>
-                        <th>Vardas</th>
-                        <th>Pavardė</th>
-                        <th>El. paštas</th>
-                        <th>Dalykai</th>
-                        <th>Veiksmai</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for tutor in tutors %}
-                    <tr class="text-center">
-                        <td>{{ tutor.first_name or '-' }}</td>
-                        <td>{{ tutor.last_name or '-' }}</td>
-                        <td>{{ tutor.email or '-' }}</td>
-                        <td>
-                            {% if tutor.subjects %}
-                                {% for subj in tutor.subjects %}
-                                    {{ subj.subject }}{% if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            {% else %}
-                                <em>Nenurodyta</em>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex justify-content-center gap-2">
-                                <a href="{{ url_for('view_tutor', tutor_id=tutor._id|string) }}"
-                                   class="btn btn-sm btn-outline-primary">
-                                   <i class="bi bi-eye"></i> Peržiūrėti
-                                </a>
-                                <a href="{{ url_for('remove_tutor', tutor_id=tutor._id|string) }}"
-                                   class="btn btn-sm btn-outline-danger"
-                                   onclick="return confirm('Ar tikrai norite ištrinti šį korepetitorių?')">
-                                   <i class="bi bi-trash"></i> Ištrinti
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% else %}
-    <p class="text-center text-muted fs-5 mt-4">👀 Korepetitorių nerasta.</p>
-    {% endif %}
+<!-- Mygtukas pridėti naują korepetitorių -->
+<div class="text-end mb-3">
+    <a href="{{ url_for('add_tutor') }}" class="btn btn-outline-primary">➕ Pridėti korepetitorių</a>
 </div>
 
-<!-- Bootstrap Icons -->
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+{% if tutors %}
+<table class="table table-striped table-hover align-middle">
+    <thead class="table-dark">
+        <tr>
+            <th>Vardas</th>
+            <th>Pavardė</th>
+            <th>El. paštas</th>
+            <th>Dalykai</th>
+            <th>Veiksmai</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tutor in tutors %}
+        <tr>
+            <td>{{ tutor.first_name or '-' }}</td>
+            <td>{{ tutor.last_name or '-' }}</td>
+            <td>{{ tutor.email or '-' }}</td>
+            <td>
+                {% if tutor.subjects %}
+                    {% for subj in tutor.subjects %}
+                        {{ subj.subject }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <em>Nenurodyta</em>
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('view_tutor', tutor_id=tutor._id|string) }}" class="btn btn-sm btn-primary">
+                    Peržiūrėti
+                </a>
+                <a href="{{ url_for('remove_tutor', tutor_id=tutor._id|string) }}"
+                   class="btn btn-sm btn-danger"
+                   onclick="return confirm('Ar tikrai norite ištrinti šį korepetitorių?')">
+                   Ištrinti
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="text-center text-muted">Nerasta korepetitorių.</p>
+{% endif %}
+</div>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 {% endblock %}
-
