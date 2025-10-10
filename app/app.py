@@ -16,7 +16,8 @@ from api.tutor import (
     delete_tutor,
     create_new_tutor,
     get_tutors_by_name,
-    assign_student_to_tutor
+    assign_student_to_tutor,
+    remove_student_from_tutor
 )
 from api.student import (
     get_students_tutors,
@@ -582,6 +583,21 @@ def add_student_to_tutor(tutor_id):
     except Exception as e:
         flash(f"Klaida: {str(e)}", "danger")
         return redirect(url_for("view_tutor", tutor_id=tutor_id))
+    
+@app.route("/tutor/<tutor_id>/remove_student/<student_id>", methods=["POST"])
+def remove_student_from_tutor_route(tutor_id, student_id):
+    try:
+        result = remove_student_from_tutor(db.tutor, tutor_id, student_id)
+        
+        if result["removed"]:
+            flash("Mokinys sėkmingai pašalintas!", "success")
+        else:
+            flash("Nepavyko pašalinti mokinio.", "danger")
+            
+    except Exception as e:
+        flash(f"Nepavyko pašalinti mokinio: {str(e)}", "danger")
+    
+    return redirect(url_for("view_tutor", tutor_id=tutor_id))
 
 @app.route('/student/<student_id>/review_list', methods=['GET'])
 def show_reviews_student(student_id):

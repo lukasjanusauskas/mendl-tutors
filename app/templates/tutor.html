@@ -107,6 +107,15 @@
                                         -
                                     {% endif %}
                                 </p>
+                                
+                                <div class="d-grid">
+                                    <form method="POST" action="{{ url_for('remove_student_from_tutor_route', tutor_id=tutor._id, student_id=student.student_id) }}" 
+                                          onsubmit="return confirm('Ar tikrai norite pašalinti {{ student.first_name }} {{ student.last_name }} iš savo mokinių sąrašo?')">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-person-dash"></i> Pašalinti mokinį
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
