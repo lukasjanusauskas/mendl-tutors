@@ -3,28 +3,73 @@
 {% block title %}Pagrindinis puslapis{% endblock %}
 
 {% block content %}
-<div class="container text-center mt-5">
-    <h1 class="mb-4">Sveiki atvykę į Korepetitorių valdymo sistemą!</h1>
-    <p class="lead mb-5">
-        Čia galite tvarkyti korepetitorius ir studentus, peržiūrėti jų informaciją bei atlikti pagrindines CRUD operacijas.
-    </p>
+<div class="container py-5">
 
-    <div class="d-flex justify-content-center gap-3">
-        <a href="{{ url_for('tutors') }}" class="btn btn-primary btn-lg">
-            👨‍🏫 Korepetitoriai
-        </a>
-        <a href="{{ url_for('sign_up_tutor') }}" class="btn btn-primary btn-lg">
-            👨‍🏫 Korepetitorių registracija
-        </a>
-        <a href="{{ url_for('students') }}" class="btn btn-success btn-lg">
-            🎓 Studentai
-        </a>
-        <a href="{{ url_for('sign_up_student') }}" class="btn btn-success btn-lg">
-            🎓 Studentų registracija
-        </a>
-        <a href="{{ url_for('login') }}" class="btn btn-success btn-lg">
-            🎓 Prisijungimas
-        </a>
+  <div class="text-center mb-5">
+    <h1 class="display-4 fw-bold text-primary mb-3">
+      Sveiki atvykę į <span class="text-success">MENDL</span> sistemą!
+    </h1>
+    <p class="lead text-muted mb-4">
+      Čia galite tvarkyti korepetitorius ir studentus, peržiūrėti jų informaciją bei atlikti pagrindines CRUD operacijas.
+    </p>
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+      <a href="{{ url_for('login') }}" class="btn btn-outline-dark btn-lg shadow">
+        🔑 Prisijungti
+      </a>
     </div>
+  </div>
+
+  <div class="row g-4 mt-5">
+
+    <!-- Korepetitoriai -->
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100 rounded-4 p-4">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-person-workspace text-primary fs-1 me-3"></i>
+          <h3 class="mb-0">Korepetitorių valdymas</h3>
+        </div>
+        <p class="text-muted">
+          Kurkite, redaguokite ir šalinkite korepetitorius. Stebėkite jų mokinius bei dėstomus dalykus.
+        </p>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('tutors') }}" class="btn btn-primary flex-grow-1">👨‍🏫 Peržiūrėti</a>
+          <a href="{{ url_for('sign_up_tutor') }}" class="btn btn-outline-primary flex-grow-1">Registruoti naują</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Studentai -->
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100 rounded-4 p-4">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-mortarboard text-success fs-1 me-3"></i>
+          <h3 class="mb-0">Studentų valdymas</h3>
+        </div>
+        <p class="text-muted">
+          Tvarkykite mokinių informaciją, priskirkite korepetitorius ir stebėkite jų pažangą.
+        </p>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('students') }}" class="btn btn-success flex-grow-1">🎓 Peržiūrėti</a>
+          <a href="{{ url_for('sign_up_student') }}" class="btn btn-outline-success flex-grow-1">Registruoti naują</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
+
+<style>
+  body {
+    background: linear-gradient(to bottom right, #f9fbff, #eef8f0);
+  }
+  .card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  }
+</style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 {% endblock %}
