@@ -21,7 +21,7 @@ app/
 
 1. Paleidimas:
    ```
-   python app.py
+   python -m app.app
    ```
 
 2. Naršyklėje nueikite į `http://localhost:5000`
@@ -30,8 +30,3 @@ app/
 
 1. HTML failus kurkite aplanke `templates/`
 2. Pridėkite naują puslapį į `app.py`
-
-## CSS ir JS pridėjimas
-
-- CSS failus kurkite aplanke `static/css/`
-- JavaSript failus kurkite aplanke `static/js/`

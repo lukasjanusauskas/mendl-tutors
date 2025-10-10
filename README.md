@@ -6,7 +6,7 @@
 
 - `model/`: skriptai sukurti mongo duombazes
 - `api/`: programos API
-- `app/`: React app'as
+- `app/`: Flask app'as
 
 ## Paleidimas
 ---

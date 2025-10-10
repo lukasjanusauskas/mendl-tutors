@@ -12,10 +12,20 @@ student_schema_validation = {
             'parents_phone_numbers'
         ],
         'properties': {
-            'full_name': {
+            'first_name': {
                 'bsonType': 'string',
-                "minLength": 1, # Reiketu prideti minimalu, negali buti tuscias
-                'description': "Student's full name"
+                'minLength': 1,
+                'description': "Student's first name"
+            },
+            'last_name': {
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Student's last name"
+            },
+            'second_name': {
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Student's second name"
             },
             'password_hashed':{
                 'bsonType': 'string',
@@ -24,7 +34,6 @@ student_schema_validation = {
             },
             'date_of_birth':{
                 'bsonType': 'date',
-                # Cia validacija galima bus daryti su paciu API, jei reikes
                 'description': "Student's date of birth"
             },
             'class': {
@@ -43,7 +52,7 @@ student_schema_validation = {
                 },
                 'description': "List of subjects the student takes"
             },
-            'phone_number': {
+            'student_phone_number': {
                 'bsonType': 'string',
                 'pattern': r'^\+?\d{7,15}$',
                 'description': "Student's phone number"

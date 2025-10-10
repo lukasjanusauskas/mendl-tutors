@@ -57,6 +57,3 @@ if __name__ == "__main__":
         create_collection(db, name, schema)
 
     print("Collections after instantiation", db.list_collection_names())
-
-    # print("Collections after dropping", db.list_collection_names())
-
