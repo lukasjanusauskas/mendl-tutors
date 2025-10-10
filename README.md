@@ -13,47 +13,39 @@
 
 ### Paleidimas su docker
 
-Kol kas palaiko API ir UI, modeliavimui nežinau, kiek yra butinybės.
-
-1. Parsiųsti `docker`
-2. Paleisti `docker-compose`
+```
+docker build -t mendl-app:1.0 .
+docker run mendl-app:1.0
+```
 
 ### Paleidimas Windows
 
-- Su virtual environment
+- Be virtual environment
+```
+python -m app.app
+```
 
-Sukurti virtual environment, kad nebūtų konfliktų:
-```
-python -m venv venv
-```
+- Su virtual environment
 
 Aktyvuoti virtual enviroment ir atsiųsti
 ```
+python -m venv venv
+
 .\venv\Scripts\Activate.ps1
-pip install -r requirements     # Vieną kartą
+pip install -r requirements.txt # Jei dar neparsiųsta
 
-python main.py
-```
-
-Jei iškils sunkumų pabandykit: `Set-ExecutionPolicy Unrestricted -Scope Process` arba `Set-ExecutionPolicy Unrestricted -Force`
-
-- Be virtual environment
-
-```
-pip install -r requirements.txt
-python main.py
+python -m app.app
 ```
 
 ### Paleidimas Linux
 Jei bandysit per WSL2
 
 ```
-python3 -m venv venv            # Gali tekti atsiųsti python3-venv. 
-                                # Jei nepavyks, pabandykit paprastą python vietoj python3.
-```
+# Priklauso nuo, distro, gali buti python3
+python3 -m venv venv
 
-```
-source venv/bin/activate        # Kaskart
-pip3 install -r requirements.txt # Atsisiuntimas, tai tik kartą
-python3 main.py                 # Jei nepavyks, tai tsg python
+source venv/bin/activate
+pip3 install -r requirements.txt
+
+python3 -m app.app
 ```

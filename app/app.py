@@ -1,4 +1,12 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import (
+    Flask, 
+    render_template, 
+    request, 
+    redirect, 
+    url_for, 
+    flash, 
+    session
+)
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import hashlib
@@ -44,15 +52,11 @@ from api.aggregates import (
     get_student_review_count,
     get_tutor_review_count
 )
-
 from api.lesson import (
     list_lessons_student_week,
-    list_lessons_tutor_week,
-    change_lesson_time_student,
     delete_lesson as func_delete_lesson,
     create_lesson,
     change_lesson_date,
-    delete_student_from_lesson,
     list_lessons_tutor_month
 )
 
@@ -63,9 +67,92 @@ app.secret_key = "supersecretkey"
 client = MongoClient(os.getenv('MONGO_URI'))
 db = client['mendel-tutor']
 
+ADMIN_NAME = os.getenv('ADMIN_NAME')
+ADMIN_PASS = os.getenv('ADMIN_PASS')
+
+ADMIN_TYPE = 'admin'
+TUTOR_TYPE = 'tutor'
+STUDENT_TYPE = 'student'
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    if 'session_type' in session:
+        session_type = session['session_type']
+    else:
+        session_type = None
+    
+    return render_template("index.html", session_type=session_type)
+
+
+@app.before_request
+def check_session_type():
+    print(request.endpoint, session)
+
+    if request.endpoint in ('login', 'logout'):
+        return None
+
+    if request.endpoint.startswith('sign_up'):
+        return None
+
+    if 'session_type' not in session:
+        return redirect(url_for('login'))
+
+    admin_only  =[
+        'add_student_to_tutor',
+        'delete_student_ui',
+        'remove_tutor',
+        'students',
+        'tutors',
+        'add_student',
+        'add_tutor'
+    ]
+
+    if session['session_type'] == ADMIN_TYPE:
+        return
+
+    elif request.endpoint in admin_only:
+        flash("Neesate autorizuoti", "warning")
+        return redirect(url_for("index"))
+
+
+def check_student_session(session, student_id: ObjectId):
+    if session['session_type'] != STUDENT_TYPE:
+        return False
+
+    if 'user_id' not in session:
+        return False
+
+    if session['user_id'] != str(student_id):
+        return False
+
+    student = db['student'].find_one({
+        '_id': ObjectId( session['user_id'] )
+    })
+
+    if not student:
+        return False
+
+    return True
+
+
+def check_tutor_session(session, tutor_id: str):
+    if session['session_type'] != TUTOR_TYPE:
+        return False
+
+    if 'user_id' not in session:
+        return False
+
+    if session['user_id'] != str(tutor_id):
+        return False
+
+    tutor = db['tutor'].find_one({
+        '_id': ObjectId( session['user_id'] )
+    })
+
+    if not tutor:
+        return False
+
+    return True
 
 
 @app.route('/students')
@@ -87,6 +174,11 @@ def students():
 
 @app.route("/student/<student_id>")
 def view_student(student_id):
+
+    if not check_student_session(session, student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
     try:
         student = get_student_by_id(db["student"], student_id)
         tutors = []
@@ -121,6 +213,7 @@ def view_student(student_id):
                     [s.get("subject", "") for s in t.get("subjects", [])]
                 )
             })
+
         return render_template("student.html", student=student, tutors=tutors, lessons=lessons)
     except Exception as e:
         traceback.print_exc()
@@ -239,9 +332,16 @@ def sign_up_student():
                 student_info['subjects'] = []
 
             # Sukuriame studentą
-            create_new_student(db.student, student_info)
+            new_student = create_new_student(db.student, student_info)
+            student_id = new_student.inserted_id
+
+            session['user_id'] = str(student_id)
+            session['session_type'] = STUDENT_TYPE
+            session['user_name'] = f"{student_info['first_name']} {student_info['last_name']}"
+            session['logged_in'] = True
+
             flash('Studentas sėkmingai užregistruotas!', 'success')
-            return redirect(url_for('students'))
+            return redirect(url_for('view_student', student_id=new_student.inserted_id))
 
         except Exception as e:
             return render_template('sign_up_student.html', error=str(e))
@@ -285,9 +385,16 @@ def sign_up_tutor():
                     "max_class": int(max_class)
                 })
 
-            create_new_tutor(db.tutor, tutor_info)
+            insert_res = create_new_tutor(db.tutor, tutor_info)
+            tutor_id = insert_res.inserted_id
+
+            session['user_id'] = str(tutor_id)
+            session['session_type'] = STUDENT_TYPE
+            session['user_name'] = f"{tutor_info['first_name']} {tutor_info['last_name']}"
+            session['logged_in'] = True
+
             flash("Korepetitorius sėkmingai užregistruotas!", "success")
-            return redirect(url_for("tutors"))
+            return redirect(url_for("view_tutor", tutor_id=tutor_id))
 
         except Exception as e:
             return render_template('sign_up_tutor.html', error=str(e))
@@ -314,11 +421,13 @@ def login():
                 
                 if tutor.get('password_hashed') == hashed_password:
                     session['user_id'] = str(tutor['_id'])
-                    session['user_type'] = 'tutor'
+                    session['session_type'] = TUTOR_TYPE
                     session['user_name'] = f"{tutor['first_name']} {tutor['last_name']}"
+                    session['logged_in'] = True
+
                     flash('Sėkmingai prisijungėte!', 'success')
                     return redirect(url_for('view_tutor', tutor_id=str(tutor['_id'])))
-            
+ 
             # Check if user is a student
             student = db.student.find_one({"student_email": email})
             if student:
@@ -330,10 +439,19 @@ def login():
                 
                 if student.get('password_hashed') == hashed_password:
                     session['user_id'] = str(student['_id'])
-                    session['user_type'] = 'student'
+                    session['session_type'] = STUDENT_TYPE
                     session['user_name'] = f"{student['first_name']} {student['last_name']}"
+
                     flash('Sėkmingai prisijungėte!', 'success')
                     return redirect(url_for('view_student', student_id=str(student['_id'])))
+
+            # Admin
+            if email == ADMIN_NAME and password == ADMIN_PASS:
+                session['session_type'] = ADMIN_TYPE
+                session['logged_in'] = True
+
+                flash('Sėkmingai prisijungėte!', 'success')
+                return redirect(url_for('index'))
             
             # If we get here, login failed
             return render_template('login.html', error='Neteisingas el. paštas arba slaptažodis')
@@ -343,11 +461,12 @@ def login():
     
     return render_template('login.html')
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     flash('Sėkmingai atsijungėte!', 'info')
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
 
 
 @app.route("/tutors", methods=["GET"])
@@ -378,6 +497,11 @@ def tutors():
 
 @app.route("/tutor/<tutor_id>/view")
 def view_tutor(tutor_id):
+
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
     try:
         tutor = get_tutor_by_id(db.tutor, tutor_id)
 
@@ -459,7 +583,6 @@ def add_tutor():
     return render_template("add_tutor.html")
 
 
-
 @app.route('/tutor/<tutor_id>/create_review', methods=['GET', 'POST'])
 def add_new_review_tutor(tutor_id):
     # Gauti mokinius is duombzes 
@@ -496,7 +619,9 @@ def add_new_review_tutor(tutor_id):
 
 @app.route('/student/<student_id>/create_review', methods=['GET', 'POST'])
 def add_new_review_student(student_id):
-    # Gauti mokinius is duombzes 
+    if not check_student_session(session, student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
 
     try:
         tutors = get_students_tutors(db['tutor'], student_id)
@@ -538,12 +663,17 @@ def add_new_review_student(student_id):
 @app.route('/tutor/<tutor_id>/review_list', methods=['GET'])
 def show_reviews_tutor(tutor_id):
 
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
     recieved_reviews, written_reviews = list_reviews_tutor(db['review'], tutor_id)
     
     return render_template('review_view.html',
                            tutor_id=tutor_id,
                            written_reviews=written_reviews,
                            recieved_reviews=recieved_reviews)
+
 
 @app.route("/tutor/<tutor_id>/add_student", methods=["GET", "POST"])
 def add_student_to_tutor(tutor_id):
@@ -583,9 +713,14 @@ def add_student_to_tutor(tutor_id):
     except Exception as e:
         flash(f"Klaida: {str(e)}", "danger")
         return redirect(url_for("view_tutor", tutor_id=tutor_id))
-    
+
+
 @app.route("/tutor/<tutor_id>/remove_student/<student_id>", methods=["POST"])
 def remove_student_from_tutor_route(tutor_id, student_id):
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
     try:
         result = remove_student_from_tutor(db.tutor, tutor_id, student_id)
         
@@ -599,8 +734,13 @@ def remove_student_from_tutor_route(tutor_id, student_id):
     
     return redirect(url_for("view_tutor", tutor_id=tutor_id))
 
+
 @app.route('/student/<student_id>/review_list', methods=['GET'])
 def show_reviews_student(student_id):
+
+    if not check_student_session(session, student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
 
     recieved_reviews, written_reviews = list_reviews_student(db['review'], student_id)
 
@@ -612,6 +752,9 @@ def show_reviews_student(student_id):
 
 @app.route('/tutor/revoke_review/<tutor_id>/<review_id>', methods=['GET'])
 def tutor_revoke_review(tutor_id, review_id):
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
 
     try:
         revoke_review(db['review'], review_id)
@@ -626,6 +769,10 @@ def tutor_revoke_review(tutor_id, review_id):
 @app.route('/student/revoke_review/<student_id>/<review_id>', methods=['GET'])
 def student_revoke_review(student_id, review_id):
 
+    if not check_student_session(session, student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
     try:
         revoke_review(db['review'], review_id)
     except Exception as err:
@@ -639,6 +786,9 @@ def student_revoke_review(student_id, review_id):
 @app.route('/review/revoke/tutor/<review_id>/<tutor_id>', methods=['GET'])
 def revoke_review_dialog_tutor(review_id, tutor_id):
     """ View and (optionally) revoke review"""
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
 
     try:
         review = get_single_review(db['review'], review_id=review_id)
@@ -656,6 +806,13 @@ def revoke_review_dialog_tutor(review_id, tutor_id):
 @app.route('/review/revoke/student/<review_id>/<student_id>', methods=['GET'])
 def revoke_review_dialog_student(review_id, student_id):
     """ View and (optionally) revoke review"""
+    if not check_student_session(session, student_id=student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
+    if not check_student_session(session, student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
 
     try:
         review = get_single_review(db['review'], review_id=review_id)
@@ -672,6 +829,10 @@ def revoke_review_dialog_student(review_id, student_id):
 
 @app.route("/tutor/manage_lessons/<tutor_id>", methods=['GET'])
 def manage_lessons(tutor_id):
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
     list_lessons = list_lessons_tutor_month(
         db['lesson'],
         db['tutor'],
@@ -689,6 +850,10 @@ def manage_lessons(tutor_id):
 
 @app.route("/tutor/change_lesson_time/<lesson_id>/<tutor_id>", methods=["POST"])
 def change_lesson_time(lesson_id, tutor_id):
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
     date = request.form.get("date")
     time = request.form.get("time")
 
@@ -705,6 +870,10 @@ def change_lesson_time(lesson_id, tutor_id):
 
 @app.route("/tutor/create_lesson/<tutor_id>", methods=["GET", "POST"])
 def create_new_lesson(tutor_id):
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
     if request.method == "POST":
         # Get request data
         date_of_lesson = request.form.get('date')
@@ -742,9 +911,11 @@ def create_new_lesson(tutor_id):
         return render_template('create_lesson.html', tutor_id=tutor_id, students=students)
     
 
-
 @app.route("/tutor/delete_lesson/<lesson_id>/<tutor_id>", methods=["GET", "POST"])
 def delete_lesson(lesson_id, tutor_id):
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
 
     try:
         func_delete_lesson(db['lesson'], lesson_id)
@@ -757,8 +928,11 @@ def delete_lesson(lesson_id, tutor_id):
 
 @app.route("/tutor/edit_lesson/<lesson_id>/<tutor_id>", methods=["GET", "POST"])
 def edit_lesson(lesson_id, tutor_id):
-    lesson = db['lesson'].find_one({'_id': ObjectId(lesson_id)})
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
 
+    lesson = db['lesson'].find_one({'_id': ObjectId(lesson_id)})
     return render_template("edit_lesson.html", lesson=lesson, tutor_id=tutor_id)
 
 

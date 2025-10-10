@@ -7,21 +7,33 @@
 
   <div class="text-center mb-5">
     <h1 class="display-4 fw-bold text-primary mb-3">
-      Sveiki atvykę į <span class="text-success">MENDL</span> sistemą!
+      Sveiki atvykę į <span class="text-success">MENDeL</span> sistemą!
     </h1>
+    {% if session_type == 'admin' %}
     <p class="lead text-muted mb-4">
       Čia galite tvarkyti korepetitorius ir studentus, peržiūrėti jų informaciją bei atlikti pagrindines CRUD operacijas.
     </p>
+    {% elif session_type == 'tutor' %}
+    <p class="lead text-muted mb-4">
+      Čia galėti kurti, perkelti ar pašalinti pamokas; palikti atsiliepimus.
+    </p>
+    {% elif session_type == 'student' %}
+    <p class="lead text-muted mb-4">
+      Čia galite prisijungti prie pamokų per rašyti atsiliepimus korepetitoriui.
+    </p>
+    {% else %}
     <div class="d-flex justify-content-center gap-3 flex-wrap">
-      <a href="{{ url_for('login') }}" class="btn btn-outline-dark btn-lg shadow">
+      <a class="text-decoration-none" href="{{ url_for('login') }}" class="btn btn-outline-dark btn-lg shadow">
         🔑 Prisijungti
       </a>
     </div>
+    {% endif %}
   </div>
 
   <div class="row g-4 mt-5">
 
     <!-- Korepetitoriai -->
+    {% if session_type == 'admin' %}
     <div class="col-md-6">
       <div class="card border-0 shadow-sm h-100 rounded-4 p-4">
         <div class="d-flex align-items-center mb-3">
@@ -54,6 +66,60 @@
         </div>
       </div>
     </div>
+
+    {% elif session_type == 'tutor' %}
+    <div class="col-md-6">
+      <a class="text-decoration-none" href="{{ url_for('view_tutor', tutor_id=session.user_id) }}">
+      <div class="card border-0 shadow-sm h-100 rounded-4 p-4">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-person-workspace text-primary fs-1 me-3"></i>
+          <h3 class="mb-0">Profilis</h3>
+        </div>
+      </div>
+      </a>
+    </div>
+    <div class="col-md-6">
+      <a class="text-decoration-none" href="{{ url_for('manage_lessons', tutor_id=session.user_id) }}">
+      <div class="card border-0 shadow-sm h-100 rounded-4 p-4">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-calendar text-primary fs-1 me-3"></i>
+          <h3 class="mb-0">Pamokų valdymas</h3>
+        </div>
+      </div>
+      </a>
+    </div>
+    <div class="col-md-6 mx-auto">
+      <a class="text-decoration-none" href="{{ url_for('show_reviews_tutor', tutor_id=session.user_id) }}">
+      <div class="card border-0 shadow-sm h-100 rounded-4 p-4">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-star-fill text-primary fs-1 me-3"></i>
+          <h3 class="mb-0">Atsiliepimai</h3>
+        </div>
+      </div>
+      </a>
+    </div>
+    {% elif session_type == 'student' %}
+    <div class="col-md-6">
+      <a class="text-decoration-none" href="{{ url_for('view_student', student_id=session.user_id) }}">
+      <div class="card border-0 shadow-sm h-100 rounded-4 p-4">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-person-workspace text-primary fs-1 me-3"></i>
+          <h3 class="mb-0">Profilis</h3>
+        </div>
+      </div>
+      </a>
+    </div>
+    <div class="col-md-6">
+      <a class="text-decoration-none" href="{{ url_for('show_reviews_student', student_id=session.user_id) }}">
+      <div class="card border-0 shadow-sm h-100 rounded-4 p-4">
+        <div class="d-flex align-items-center mb-3">
+          <i class="bi bi-star-fill text-primary fs-1 me-3"></i>
+          <h3 class="mb-0">Atsiliepimai</h3>
+        </div>
+      </div>
+      </a>
+    </div>
+    {% endif %}
 
   </div>
 </div>
