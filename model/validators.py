@@ -99,12 +99,17 @@ tutor_schema_validation = {
             'first_name': {
                 'bsonType': 'string',
                 'minLength': 1,
-                'description': "Tutor's full name"
+                'description': "Tutor's first name"
             },
             'last_name': {
                 'bsonType': 'string',
                 'minLength': 1,
-                'description': "Tutor's full name"
+                'description': "Tutor's last name"
+            },
+            'second_name': {
+                'bsonType': 'string',
+                'minLength': 1,
+                'description': "Tutor's second name"
             },
             'email': {
                 'bsonType': 'string',
@@ -143,12 +148,12 @@ tutor_schema_validation = {
                                 'first_name': {
                                     'bsonType': 'string',
                                     "minLength": 1,
-                                    'description': "Student's full name"
+                                    'description': "Student's first name"
                                 },
                                 'last_name': {
                                     'bsonType': 'string',
                                     "minLength": 1,
-                                    'description': "Student's full name"
+                                    'description': "Student's last name"
                                 },
                                 'phone_number': {
                                     'bsonType': 'string',
@@ -176,7 +181,7 @@ tutor_schema_validation = {
             'phone_number': {
                 'bsonType': 'string',
                 'pattern': r'^\+?\d{7,15}$',
-                'description': "Phone number"
+                'description': "Tutor's phone number"
             },
             'password_hashed':{
                 'bsonType': 'string',
@@ -205,12 +210,12 @@ lesson_schema_validation = {
                     'first_name': {
                         'bsonType': 'string',
                         'minLength': 1,
-                        'description': "Tutor's full name"
+                        'description': "Tutor's first name"
                     },
                     'last_name': {
                         'bsonType': 'string',
                         'minLength': 1,
-                        'description': "Tutor's full name"
+                        'description': "Tutor's last name"
                     }
                 },
                 'description': "Tutor's full name"
@@ -329,7 +334,7 @@ review_schema_validation = {
                         'minLength': 1,
                     }
                 },
-                'description': "Tutor's full name"
+                'description': "Student's full name"
             },
             'review_text': {
                 'bsonType': 'string',
