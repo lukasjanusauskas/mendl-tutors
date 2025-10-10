@@ -15,7 +15,7 @@
 
 ```
 docker build -t mendl-app:1.0 .
-docker run mendl-app:1.0
+docker run -p 5000:5000 mendl-app:1.0
 ```
 
 ### Paleidimas Windows
