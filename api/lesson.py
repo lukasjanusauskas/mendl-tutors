@@ -246,7 +246,11 @@ def list_lessons_tutor_week(
             'class': lesson_doc['class']
         })
 
-    return lessons
+
+    lesson_list = sorted(lessons,
+        key=lambda x: datetime.strptime(x['time'], '%Y-%m-%d %H:%M'))
+
+    return lesson_list
 
 
 def list_lessons_tutor_month(
@@ -297,7 +301,10 @@ def list_lessons_tutor_month(
             'class': lesson_doc['class']
         })
 
-    return lessons
+    lesson_list = sorted(lessons,
+        key=lambda x: datetime.strptime(x['time'], '%Y-%m-%d %H:%M'))
+
+    return lesson_list
 
 
 def list_lessons_student_week(
@@ -342,7 +349,10 @@ def list_lessons_student_week(
             'link': lesson_doc['link']
         })
 
-    return lessons
+    lesson_list = sorted(lessons,
+        key=lambda x: datetime.strptime(x['time'], '%Y-%m-%d %H:%M'))
+
+    return lesson_list
 
 
 def list_lesson_student_month(
@@ -392,7 +402,10 @@ def list_lesson_student_month(
         if 'type' in lesson_doc:
             lessons[-1] = lessons[-1] | {"type": lesson_doc["type"]}
 
-    return lessons
+    lesson_list = sorted(lessons,
+        key=lambda x: datetime.strptime(x['time'], '%Y-%m-%d %H:%M'))
+
+    return lesson_list
 
 
 def change_lesson_price_student(
@@ -509,8 +522,6 @@ def change_lesson_time_student(
     })
 
     # Jei korepetitorius tuo metu turi suderinama pamoka, prideti mokini
-    print(student)
-
     if lesson_same_time_tutor:
         # Patikrinti klase ir dalyka ir prideti mokini. Jei neatitinka -> ValueError
         if not lesson_doc['subject'] in student["subjects"]:
