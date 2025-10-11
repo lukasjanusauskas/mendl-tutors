@@ -164,19 +164,41 @@ def check_tutor_session(session, tutor_id: str):
 
 @app.route('/students')
 def students():
-    first_name = request.args.get("first_name")
-    last_name = request.args.get("last_name")
+    """
+    Puslapis su visų studentų sąrašu ir paieškos galimybe pagal vardą ir pavardę.
+    """
+    try:
+        first_name = request.args.get("first_name")
+        last_name = request.args.get("last_name")
+        student_collection = db["student"]
 
-    if first_name and last_name:
-        students_list = get_students_by_name(db["student"], first_name, last_name)
-    else:
-        students_list = get_all_students(db["student"])
 
-    if first_name is None:
-        return render_template("students.html", students=students_list, first_name="Vardas", last_name="Pavardė")
+        if first_name and last_name:
+            students_list = get_students_by_name(student_collection, first_name, last_name)
+        else:
 
-    elif first_name is not None:
-        return render_template("students.html", students=students_list, first_name=first_name, last_name=last_name)
+            students_list = list(
+                student_collection.find({}).sort([("first_name", 1), ("last_name", 1)])
+            )
+
+
+        if first_name is None:
+            return render_template(
+                "students.html",
+                students=students_list,
+                first_name="Vardas",
+                last_name="Pavardė"
+            )
+        else:
+            return render_template(
+                "students.html",
+                students=students_list,
+                first_name=first_name,
+                last_name=last_name
+            )
+
+    except Exception as e:
+        return f"Klaida: {e}", 500
 
 
 @app.route("/student/<student_id>")
@@ -489,7 +511,9 @@ def tutors():
         if first_name or last_name:
             tutors_list = get_tutors_by_name(tutor_collection, first_name, last_name)
         else:
-            tutors_list = list(tutor_collection.find({}))
+            tutors_list = list(
+                tutor_collection.find({}).sort([("first_name", 1), ("last_name", 1)])
+            )
 
         return render_template(
             "tutors.html",
@@ -497,9 +521,8 @@ def tutors():
             first_name=first_name,
             last_name=last_name
         )
-
     except Exception as e:
-        return render_template("tutors.html", tutors=[], error=str(e))
+        return f"Klaida: {e}", 500
 
 
 @app.route("/tutor/<tutor_id>/view")
