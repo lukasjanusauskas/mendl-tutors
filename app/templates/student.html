@@ -3,130 +3,113 @@
 {% block title %}Peržiūra: {{ student.first_name }} {{ student.last_name }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div class="container py-5">
 
     {% if error %}
-        <div class="alert alert-danger shadow-sm">{{ error }}</div>
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     {% endif %}
 
     {% if student %}
-    <div class="card shadow-sm p-4 mb-4">
-        <h1 class="mb-3 fw-bold">{{ student.first_name }} {{ student.second_name or "" }} {{ student.last_name }}</h1>
+        <div class="card border-0 shadow-sm rounded-4 mb-5 p-5">
+            <div class="d-flex align-items-center mb-4">
+                <div class="me-3">
+                    <i class="bi bi-person-circle fs-1 text-success"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ student.first_name }} {{ student.second_name or "" }} {{ student.last_name }}</h1>
+                    <p class="mb-1"><i class="bi bi-envelope"></i> {{ student.student_email or "-" }}</p>
+                    <p class="mb-0"><i class="bi bi-telephone"></i> {{ student.student_phone_number or "-" }}</p>
+                </div>
+            </div>
 
-        <!-- Student info -->
-        <div class="row mb-4">
-            <div class="col-md-4"><strong>Gimimo data:</strong> {{ student.date_of_birth.strftime('%Y-%m-%d') if student.date_of_birth else '-' }}</div>
-            <div class="col-md-4"><strong>Tėvų telefonai:</strong> {{ student.parents_phone_numbers | join(', ') or '-' }}</div>
-            <div class="col-md-4"><strong>Mokinio telefonas:</strong> {{ student.student_phone_number or '-' }}</div>
-        </div>
-        <div class="row mb-4">
-            {% if "pay" in student %}
-            <div class="col-md-4"><strong>Mokėti šį mėnesį:</strong> {{ student.pay }}</div>
-            {% endif %}
-            {% if "review_count" in student %}
-            <div class="col-md-4"><strong>Atsiliepimų skaičius:</strong> {{ student.review_count }}</div>
-            {% endif %}
-            <div class="col-md-4"><strong>Mokinio email:</strong> {{ student.student_email or '-' }}</div>
-        </div>
-        <div class="row mb-4">
-            <div class="col-md-6"><strong>Tėvų email:</strong> {{ student.parents_email or '-' }}</div>
-            <div class="col-md-6">
-                <strong>Dalykai:</strong>
-                {% if student.subjects %}
-                    <ul class="mb-0">
-                        {% for s in student.subjects %}
-                        <li>{{ s }}</li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    -
-                {% endif %}
+            <div class="row mb-3">
+                <div class="col-md-4"><strong>Gimimo data:</strong> {{ student.date_of_birth.strftime('%Y-%m-%d') if student.date_of_birth else '-' }}</div>
+                <div class="col-md-4"><strong>Klasė:</strong> {{ student.class or '-' }}</div>
+                <div class="col-md-4"><strong>Tėvų el. paštas:</strong> {{ student.parents_email or '-' }}</div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4"><strong>Tėvų telefonai:</strong> {{ student.parents_phone_numbers | join(', ') or '-' }}</div>
+                <div class="col-md-4">
+                    <strong>Dalykai:</strong>
+                    {% if student.subjects %}
+                        {{ student.subjects | join(', ') }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+                <div class="col-md-4"><strong>Mokėti šį mėnesį:</strong> {{ student.pay or '-'}} </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-3 mt-4">
+                <a href="{{ url_for('show_reviews_student', student_id=student._id) }}" 
+                   class="btn btn-outline-primary flex-grow-1">
+                    <i class="bi bi-eye"></i> Peržiūrėti atsiliepimus
+                </a>
+                <a href="{{ url_for('add_new_review_student', student_id=student._id) }}" 
+                   class="btn btn-outline-success flex-grow-1">
+                    <i class="bi bi-pencil-square"></i> Palikti atsiliepimą
+                </a>
             </div>
         </div>
 
-        <!-- Veiksmai -->
-        <div class="d-flex flex-wrap gap-2 mb-4">
-            <a href="{{ url_for('show_reviews_student', student_id=student._id) }}"
-               class="btn btn-info text-light flex-fill">
-               <i class="bi bi-card-text"></i> Peržiūrėti atsiliepimus
-            </a>
-            <a href="{{ url_for('add_new_review_student', student_id=student._id) }}"
-               class="btn btn-info text-light flex-fill">
-               <i class="bi bi-pencil-square"></i> Palikti atsiliepimą
-            </a>
-        </div>
-    </div>
+        <!-- Korepetitoriai -->
+        <h3 class="mb-4 fw-bold text-success">Korepetitoriai</h3>
+        {% if tutors %}
+            <div class="row g-4 mb-5">
+                {% for tutor in tutors %}
+                    <div class="col-sm-6 col-md-4 col-lg-3">
+                        <div class="card h-100 shadow-sm border-0 rounded-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title mb-2">{{ tutor.first_name }} {{ tutor.last_name }}</h5>
+                                <p class="mb-1 text-muted"><i class="bi bi-envelope"></i> {{ tutor.email }}</p>
+                                <p class="mb-0"><strong>Dalykas:</strong> {{ tutor.subject }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">Mokinys šiuo metu neturi priskirtų korepetitorių.</p>
+        {% endif %}
 
-    <!-- Korepetitoriai -->
-    <h3 class="mb-3">Korepetitoriai</h3>
-    {% if tutors %}
-    <div class="card shadow-sm p-3 mb-4">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-primary text-center">
-                    <tr>
-                        <th>Vardas</th>
-                        <th>Pavardė</th>
-                        <th>El. paštas</th>
-                        <th>Dalykas</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for tutor in tutors %}
-                    <tr class="text-center">
-                        <td>{{ tutor.first_name }}</td>
-                        <td>{{ tutor.last_name }}</td>
-                        <td>{{ tutor.email }}</td>
-                        <td>{{ tutor.subject }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% else %}
-        <p class="text-center text-muted">Mokinys šiuo metu neturi priskirtų korepetitorių.</p>
-    {% endif %}
-
-    <!-- Pamokos šią savaitę -->
-    <h3 class="mb-3">Pamokos šią savaitę</h3>
-    {% if lessons %}
-    <div class="card shadow-sm p-3 mb-4">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-primary text-center">
-                    <tr>
-                        <th>Data ir laikas</th>
-                        <th>Korepetitorius</th>
-                        <th>Mokiniai</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for lesson in lessons %}
-                    <tr class="text-center">
-                        <td>{{ lesson.time }}</td>
-                        <td>{{ lesson.tutor_first_name }} {{ lesson.tutor_last_name }}</td>
-                        <td>
-                            {% for s in lesson.students %}
-                                {{ s.first_name }} {{ s.last_name }}{% if not loop.last %}, {% endif %}
-                            {% endfor %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% else %}
-        <p class="text-center text-muted">Mokinys šią savaitę pamokų neturi.</p>
-    {% endif %}
+        <!-- Pamokos -->
+        <h3 class="mb-4 fw-bold text-success">Pamokos</h3>
+        {% if lessons %}
+            <div class="row g-3">
+                {% for lesson in lessons %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card shadow-sm border-0 rounded-3 p-3 h-100">
+                            <p class="mb-2"><strong>🕒 Data:</strong> {{ lesson.time }}</p>
+                            <p class="mb-2"><strong>👨‍🏫 Korepetitorius:</strong> {{ lesson.tutor_first_name }} {{ lesson.tutor_last_name }}</p>
+                            <p class="mb-0"><strong>👩‍🎓 Mokiniai:</strong>
+                                {% for s in lesson.students %}
+                                    {{ s.first_name }} {{ s.last_name }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">Mokinys šiuo metu neturi suplanuotų pamokų.</p>
+        {% endif %}
 
     {% else %}
-        <p class="text-center text-muted mt-4">Mokinys nerastas.</p>
+        <p class="text-muted">Mokinys nerastas.</p>
     {% endif %}
 
 </div>
 
-<!-- Bootstrap Icons -->
+<style>
+.btn-outline-primary { border-width: 2px; }
+.btn-outline-success { border-width: 2px; }
+.card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.card:hover { transform: translateY(-4px); box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+</style>
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 {% endblock %}
