@@ -1,3 +1,5 @@
+from bson.decimal128 import Decimal128
+
 student_schema_validation = {
     '$jsonSchema': {
         'bsonType': 'object',
@@ -254,11 +256,12 @@ lesson_schema_validation = {
                             },
                             'description': "Parent's phone number"
                         },
-                        'price' :{
-                            'bsonType': 'double',
-                            'minimum': 0,
-                            'maximum': 150,
-                            'description': 'Price of the lesson for the student'
+                        'price': {
+                            'bsonType': 'decimal',
+                            'minimum': Decimal128("0.000"),
+                            'maximum': Decimal128("150.000"),
+                            'multipleOf': Decimal128("0.001"),
+                            'description': 'Price of the lesson for the student'    
                         },
                         'paid':{
                             'bsonType': "bool",
