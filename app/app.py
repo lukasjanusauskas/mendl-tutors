@@ -86,8 +86,6 @@ def index():
 
 @app.before_request
 def check_session_type():
-    print(request.endpoint, session)
-
     if request.endpoint in ('login', 'logout'):
         return None
 
@@ -116,6 +114,10 @@ def check_session_type():
 
 
 def check_student_session(session, student_id: ObjectId):
+    print(session['session_type'] == ADMIN_TYPE, "\n\n\n")
+    if session['session_type'] == ADMIN_TYPE:
+        return True
+
     if session['session_type'] != STUDENT_TYPE:
         return False
 
@@ -136,6 +138,11 @@ def check_student_session(session, student_id: ObjectId):
 
 
 def check_tutor_session(session, tutor_id: str):
+    print(session['session_type'] == ADMIN_TYPE, "\n\n\n")
+
+    if session['session_type'] == ADMIN_TYPE:
+        return True
+
     if session['session_type'] != TUTOR_TYPE:
         return False
 
@@ -519,8 +526,6 @@ def view_tutor(tutor_id):
 
         if not tutor:
             return render_template("tutor.html", tutor=None, students=None)
-
-        print(tutor )
 
         students = get_tutor_students(db.tutor, tutor_id)
         return render_template("tutor.html", tutor=tutor, students=students)
