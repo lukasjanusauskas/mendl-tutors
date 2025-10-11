@@ -11,11 +11,14 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import hashlib
 import traceback
+import jwt
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
 import os
 import re
+
+from functools import wraps
 
 from api.tutor import (
     get_tutor_by_id,
@@ -63,7 +66,7 @@ from api.lesson import (
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
+app.secret_key = 'supersecretkey'
 client = MongoClient(os.getenv('MONGO_URI'))
 db = client['mendel-tutor']
 
@@ -73,6 +76,10 @@ ADMIN_PASS = os.getenv('ADMIN_PASS')
 ADMIN_TYPE = 'admin'
 TUTOR_TYPE = 'tutor'
 STUDENT_TYPE = 'student'
+
+JWT_SECRET_KEY = 'labai-slaptas-raktas-1'
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRATION_HOURS = 1
 
 @app.route("/")
 def index():
@@ -89,13 +96,13 @@ def check_session_type():
     if request.endpoint in ('login', 'logout'):
         return None
 
-    if request.endpoint.startswith('sign_up'):
+    if request.endpoint and request.endpoint.startswith('sign_up'):
         return None
 
     if 'session_type' not in session:
         return redirect(url_for('login'))
 
-    admin_only  =[
+    admin_only = [
         'add_student_to_tutor',
         'delete_student_ui',
         'remove_tutor',
@@ -113,12 +120,19 @@ def check_session_type():
         return redirect(url_for("index"))
 
 
-def check_student_session(session, student_id: ObjectId):
-    print(session['session_type'] == ADMIN_TYPE, "\n\n\n")
-    if session['session_type'] == ADMIN_TYPE:
+def check_student_session(session, student_id: str):
+    # First check JWT token if available
+    if 'jwt_token' in session:
+        payload = verify_jwt_token(session['jwt_token'])
+        if payload and payload.get('user_type') == STUDENT_TYPE:
+            if payload.get('user_id') == str(student_id) or session.get('session_type') == ADMIN_TYPE:
+                return True
+    
+    # Fallback to original session check
+    if session.get('session_type') == ADMIN_TYPE:
         return True
 
-    if session['session_type'] != STUDENT_TYPE:
+    if session.get('session_type') != STUDENT_TYPE:
         return False
 
     if 'user_id' not in session:
@@ -131,19 +145,21 @@ def check_student_session(session, student_id: ObjectId):
         '_id': ObjectId( session['user_id'] )
     })
 
-    if not student:
-        return False
-
-    return True
-
+    return bool(student)
 
 def check_tutor_session(session, tutor_id: str):
-    print(session['session_type'] == ADMIN_TYPE, "\n\n\n")
+    # First check JWT token if available
+    if 'jwt_token' in session:
+        payload = verify_jwt_token(session['jwt_token'])
+        if payload and payload.get('user_type') == TUTOR_TYPE:
+            if payload.get('user_id') == str(tutor_id) or session.get('session_type') == ADMIN_TYPE:
+                return True
 
-    if session['session_type'] == ADMIN_TYPE:
+    # Fallback to original session check
+    if session.get('session_type') == ADMIN_TYPE:
         return True
 
-    if session['session_type'] != TUTOR_TYPE:
+    if session.get('session_type') != TUTOR_TYPE:
         return False
 
     if 'user_id' not in session:
@@ -153,13 +169,10 @@ def check_tutor_session(session, tutor_id: str):
         return False
 
     tutor = db['tutor'].find_one({
-        '_id': ObjectId( session['user_id'] )
+        '_id': ObjectId(session['user_id'])
     })
 
-    if not tutor:
-        return False
-
-    return True
+    return bool(tutor)
 
 
 @app.route('/students')
@@ -449,6 +462,7 @@ def login():
                 hashed_password = hash_algo.hexdigest()
                 
                 if tutor.get('password_hashed') == hashed_password:
+                    session['jwt_token'] = generate_jwt_token(str(tutor['_id']), TUTOR_TYPE, f"{tutor['first_name']} {tutor['last_name']}")
                     session['user_id'] = str(tutor['_id'])
                     session['session_type'] = TUTOR_TYPE
                     session['user_name'] = f"{tutor['first_name']} {tutor['last_name']}"
@@ -467,6 +481,7 @@ def login():
                 hashed_password = hash_algo.hexdigest()
                 
                 if student.get('password_hashed') == hashed_password:
+                    session['jwt_token'] = generate_jwt_token(str(student['_id']), STUDENT_TYPE, f"{student['first_name']} {student['last_name']}")
                     session['user_id'] = str(student['_id'])
                     session['session_type'] = STUDENT_TYPE
                     session['user_name'] = f"{student['first_name']} {student['last_name']}"
@@ -476,6 +491,7 @@ def login():
 
             # Admin
             if email == ADMIN_NAME and password == ADMIN_PASS:
+                session['jwt_token'] = jwt_token = generate_jwt_token('admin', ADMIN_TYPE, 'Administrator')
                 session['session_type'] = ADMIN_TYPE
                 session['logged_in'] = True
 
@@ -963,6 +979,90 @@ def edit_lesson(lesson_id, tutor_id):
     lesson = db['lesson'].find_one({'_id': ObjectId(lesson_id)})
     return render_template("edit_lesson.html", lesson=lesson, tutor_id=tutor_id)
 
+def generate_jwt_token(user_id, user_type, user_name):
+    """Generate a JWT token for authenticated user"""
+    payload = {
+        'user_id': user_id,
+        'user_type': user_type,
+        'user_name': user_name,
+        'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
+        'iat': datetime.utcnow()  # issued at
+    }
+    
+    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return token
+
+def verify_jwt_token(token):
+    """Verify and decode a JWT token"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        return None  # Token has expired
+    except jwt.InvalidTokenError:
+        return None  # Token is invalid
+
+def jwt_required(f):
+    """Decorator to require JWT authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        token = None
+        
+        # Check for token in Authorization header
+        auth_header = request.headers.get('Authorization')
+        if auth_header:
+            try:
+                token = auth_header.split(" ")[1]  # Format: "Bearer <token>"
+            except IndexError:
+                return {'error': 'Invalid authorization header format'}, 401
+        
+        # Check for token in session (for web interface)
+        if not token and 'jwt_token' in session:
+            token = session['jwt_token']
+        
+        if not token:
+            flash('Token is missing', 'warning')
+            return redirect(url_for('login'))
+        
+        payload = verify_jwt_token(token)
+        if payload is None:
+            flash('Token is invalid or expired', 'warning')
+            session.pop('jwt_token', None)  # Remove invalid token
+            return redirect(url_for('login'))
+        
+        # Add user info to request context
+        request.current_user = payload
+        return f(*args, **kwargs)
+    
+    return decorated_function
+
+@app.route('/test-jwt')
+def test_jwt():
+    """Test route to check JWT functionality"""
+    if 'jwt_token' not in session:
+        return {
+            'error': 'No JWT token in session',
+            'session_keys': list(session.keys()),
+            'logged_in': session.get('logged_in', False)
+        }
+    
+    token = session['jwt_token']
+    payload = verify_jwt_token(token)
+    
+    if payload:
+        return {
+            'status': 'JWT working correctly',
+            'token_preview': token[:50] + '...',
+            'payload': payload,
+            'expires_at': datetime.fromtimestamp(payload['exp']).isoformat(),
+            'issued_at': datetime.fromtimestamp(payload['iat']).isoformat(),
+            'time_until_expiry': payload['exp'] - datetime.utcnow().timestamp()
+        }
+    else:
+        return {
+            'error': 'JWT token is invalid or expired',
+            'token_preview': token[:50] + '...'
+        }
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
