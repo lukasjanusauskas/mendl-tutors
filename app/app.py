@@ -93,14 +93,23 @@ def index():
 
 @app.before_request
 def check_session_type():
-    if request.endpoint in ('login', 'logout'):
+    if request.endpoint in ('login', 'logout', 'test_jwt'):
         return None
 
     if request.endpoint and request.endpoint.startswith('sign_up'):
         return None
 
-    if 'session_type' not in session:
+    # Check JWT token instead of session
+    if 'jwt_token' not in session:
         return redirect(url_for('login'))
+    
+    payload = verify_jwt_token(session['jwt_token'])
+    if not payload:
+        session.clear()  # Clear invalid session
+        return redirect(url_for('login'))
+
+    # Store user info in request context for easy access
+    request.current_user = payload
 
     admin_only = [
         'add_student_to_tutor',
@@ -112,7 +121,7 @@ def check_session_type():
         'add_tutor'
     ]
 
-    if session['session_type'] == ADMIN_TYPE:
+    if payload.get('user_type') == ADMIN_TYPE:
         return
 
     elif request.endpoint in admin_only:
@@ -121,58 +130,42 @@ def check_session_type():
 
 
 def check_student_session(session, student_id: str):
-    # First check JWT token if available
-    if 'jwt_token' in session:
-        payload = verify_jwt_token(session['jwt_token'])
-        if payload and payload.get('user_type') == STUDENT_TYPE:
-            if payload.get('user_id') == str(student_id) or session.get('session_type') == ADMIN_TYPE:
-                return True
-    
-    # Fallback to original session check
-    if session.get('session_type') == ADMIN_TYPE:
+    # Check JWT token
+    if 'jwt_token' not in session:
+        return False
+        
+    payload = verify_jwt_token(session['jwt_token'])
+    if not payload:
+        return False
+        
+    # Admin can access everything
+    if payload.get('user_type') == ADMIN_TYPE:
         return True
-
-    if session.get('session_type') != STUDENT_TYPE:
-        return False
-
-    if 'user_id' not in session:
-        return False
-
-    if session['user_id'] != str(student_id):
-        return False
-
-    student = db['student'].find_one({
-        '_id': ObjectId( session['user_id'] )
-    })
-
-    return bool(student)
+        
+    # Student can only access their own data
+    if payload.get('user_type') == STUDENT_TYPE and payload.get('user_id') == str(student_id):
+        return True
+        
+    return False
 
 def check_tutor_session(session, tutor_id: str):
-    # First check JWT token if available
-    if 'jwt_token' in session:
-        payload = verify_jwt_token(session['jwt_token'])
-        if payload and payload.get('user_type') == TUTOR_TYPE:
-            if payload.get('user_id') == str(tutor_id) or session.get('session_type') == ADMIN_TYPE:
-                return True
-
-    # Fallback to original session check
-    if session.get('session_type') == ADMIN_TYPE:
+    # Check JWT token
+    if 'jwt_token' not in session:
+        return False
+        
+    payload = verify_jwt_token(session['jwt_token'])
+    if not payload:
+        return False
+        
+    # Admin can access everything
+    if payload.get('user_type') == ADMIN_TYPE:
         return True
-
-    if session.get('session_type') != TUTOR_TYPE:
-        return False
-
-    if 'user_id' not in session:
-        return False
-
-    if session['user_id'] != str(tutor_id):
-        return False
-
-    tutor = db['tutor'].find_one({
-        '_id': ObjectId(session['user_id'])
-    })
-
-    return bool(tutor)
+        
+    # Tutor can only access their own data
+    if payload.get('user_type') == TUTOR_TYPE and payload.get('user_id') == str(tutor_id):
+        return True
+        
+    return False
 
 
 @app.route('/students')
@@ -491,7 +484,7 @@ def login():
 
             # Admin
             if email == ADMIN_NAME and password == ADMIN_PASS:
-                session['jwt_token'] = jwt_token = generate_jwt_token('admin', ADMIN_TYPE, 'Administrator')
+                session['jwt_token'] = generate_jwt_token('admin', ADMIN_TYPE, 'Administrator')
                 session['session_type'] = ADMIN_TYPE
                 session['logged_in'] = True
 
