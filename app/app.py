@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import hashlib
 import traceback
 import jwt
+import json
 
 from datetime import datetime, timedelta
 from bson import ObjectId
@@ -63,12 +64,16 @@ from api.lesson import (
     list_lessons_tutor_month
 )
 
+from redis_api.redis_client import get_redis
+
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 client = MongoClient(os.getenv('MONGO_URI'))
 db = client['mendel-tutor']
+
+r = get_redis()
 
 ADMIN_NAME = os.getenv('ADMIN_NAME')
 ADMIN_PASS = os.getenv('ADMIN_PASS')
@@ -448,14 +453,28 @@ def login():
             # Check if user is a tutor
             tutor = db.tutor.find_one({"email": email})
             if tutor:
-                # Verify password
                 password_encoded = password.encode('utf-8')
                 hash_algo = hashlib.sha256()
                 hash_algo.update(password_encoded)
                 hashed_password = hash_algo.hexdigest()
                 
                 if tutor.get('password_hashed') == hashed_password:
-                    session['jwt_token'] = generate_jwt_token(str(tutor['_id']), TUTOR_TYPE, f"{tutor['first_name']} {tutor['last_name']}")
+                    token = generate_jwt_token(str(tutor['_id']), TUTOR_TYPE, f"{tutor['first_name']} {tutor['last_name']}")
+                    
+                    redis_key = f"jwt:user:{tutor['_id']}"
+                    
+                    # Store tokens in JSON format
+                    token_data = {
+                        'token': token,
+                        'user_type': TUTOR_TYPE,
+                        'user_id': str(tutor['_id']),
+                        'user_name': f"{tutor['first_name']} {tutor['last_name']}"
+                    }
+                    
+                    # Store in Redis
+                    r.setex(redis_key, JWT_EXPIRATION_HOURS * 3600, json.dumps(token_data))
+                    
+                    session['jwt_token'] = token
                     session['user_id'] = str(tutor['_id'])
                     session['session_type'] = TUTOR_TYPE
                     session['user_name'] = f"{tutor['first_name']} {tutor['last_name']}"
@@ -464,17 +483,21 @@ def login():
                     flash('Sėkmingai prisijungėte!', 'success')
                     return redirect(url_for('view_tutor', tutor_id=str(tutor['_id'])))
  
-            # Check if user is a student
             student = db.student.find_one({"student_email": email})
             if student:
-                # Verify password
                 password_encoded = password.encode('utf-8')
                 hash_algo = hashlib.sha256()
                 hash_algo.update(password_encoded)
                 hashed_password = hash_algo.hexdigest()
                 
                 if student.get('password_hashed') == hashed_password:
-                    session['jwt_token'] = generate_jwt_token(str(student['_id']), STUDENT_TYPE, f"{student['first_name']} {student['last_name']}")
+                    token = generate_jwt_token(str(student['_id']), STUDENT_TYPE, f"{student['first_name']} {student['last_name']}")
+                    
+                    redis_key = f"jwt:user:{student['_id']}"
+                    token_data = {'token': token, 'user_type': STUDENT_TYPE, 'user_id': str(student['_id']), 'user_name': f"{student['first_name']} {student['last_name']}"}
+                    r.setex(redis_key, JWT_EXPIRATION_HOURS * 3600, json.dumps(token_data))
+                    
+                    session['jwt_token'] = token
                     session['user_id'] = str(student['_id'])
                     session['session_type'] = STUDENT_TYPE
                     session['user_name'] = f"{student['first_name']} {student['last_name']}"
@@ -484,14 +507,19 @@ def login():
 
             # Admin
             if email == ADMIN_NAME and password == ADMIN_PASS:
-                session['jwt_token'] = generate_jwt_token('admin', ADMIN_TYPE, 'Administrator')
+                token = generate_jwt_token('admin', ADMIN_TYPE, 'Administrator')
+                
+                redis_key = "jwt:user:admin"
+                token_data = {'token': token, 'user_type': ADMIN_TYPE, 'user_id': 'admin', 'user_name': 'Administrator'}
+                r.setex(redis_key, JWT_EXPIRATION_HOURS * 3600, json.dumps(token_data))
+                
+                session['jwt_token'] = token
                 session['session_type'] = ADMIN_TYPE
                 session['logged_in'] = True
 
                 flash('Sėkmingai prisijungėte!', 'success')
                 return redirect(url_for('index'))
             
-            # If we get here, login failed
             return render_template('login.html', error='Neteisingas el. paštas arba slaptažodis')
             
         except Exception as e:
@@ -502,6 +530,11 @@ def login():
 
 @app.route('/logout')
 def logout():
+    
+    if 'user_id' in session:
+        redis_key = f"jwt:user:{session['user_id']}"
+        r.delete(redis_key)
+    
     session.clear()
     flash('Sėkmingai atsijungėte!', 'info')
     return redirect(url_for('login'))
@@ -986,14 +1019,39 @@ def generate_jwt_token(user_id, user_type, user_name):
     return token
 
 def verify_jwt_token(token):
-    """Verify and decode a JWT token"""
+    """Verify and decode a JWT token, checking Redis storage"""
     try:
+        # First, decode the JWT to get the payload
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        
+        # Get user_id from payload
+        user_id = payload.get('user_id')
+        
+        # Check if token exists in Redis
+        redis_key = f"jwt:user:{user_id}"
+        stored_data = r.get(redis_key)
+        
+        if not stored_data:
+            # Token not found in Redis (expired or logged out)
+            return None
+        
+        # Parse stored data
+        token_data = json.loads(stored_data)
+        
+        # Verify that the token matches what's stored
+        if token_data.get('token') != token:
+            # Token mismatch - possible security issue
+            return None
+        
         return payload
+        
     except jwt.ExpiredSignatureError:
         return None  # Token has expired
     except jwt.InvalidTokenError:
         return None  # Token is invalid
+    except Exception as e:
+        print(f"Error verifying token: {e}")
+        return None
 
 def jwt_required(f):
     """Decorator to require JWT authentication"""
