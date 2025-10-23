@@ -110,29 +110,6 @@ def calculate_tutor_rating(review_collection, tutor_id: str):
         return None
 
 
-def number_of_lessons_month_tutor(lesson_collection, tutor_id: str):
-    aggregate_output_cursor = lesson_collection.aggregate([
-        { 
-            "$match": { 
-                "tutor.tutor_id": ObjectId(tutor_id),
-                "$or": [
-                    { "type": { "$exists": False } },
-                    { "type": "ACTIVE" }
-                ]
-            }
-        },
-        { 
-            "$count": "num_doc"
-        }
-    ])
-
-    try:
-        agg_doc = next( aggregate_output_cursor )
-        return agg_doc['num_doc']
-    except StopIteration:
-        return None
-
-
 def pay_month_tutor(lesson_collection, tutor_id: str):
     """
     Apskaičiuoja mėnesinį atlyginimą dėstytojui pagal pamokas.
@@ -201,29 +178,6 @@ def invalidate_tutor_pay_cache(tutor_id: str):
         print(f"ℹ️ Kešas mėnesiniam atlyginimui jau buvo tuščias")
 
 
-def number_of_lessons_month_student(lesson_collection, student_id: str):
-    aggregate_output_cursor = lesson_collection.aggregate([
-        {
-        "$match": {
-            "$and": [
-            { "students.student_id": ObjectId(student_id) },
-            {
-                "$or": [
-                    { "type": { "$exists": False } },
-                    { "type": "ACTIVE" }
-                ]
-            }]}
-        },
-        { 
-            "$count": "num_doc"
-        }
-    ])
-
-    try:
-        agg_doc = next( aggregate_output_cursor )
-        return agg_doc['num_doc']
-    except StopIteration:
-        return None
 
 def pay_month_student(lesson_collection, student_id: str):
     """
