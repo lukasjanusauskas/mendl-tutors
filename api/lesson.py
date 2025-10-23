@@ -4,8 +4,9 @@ from api.utils import (
 )
 from api.connection import get_db
 from pymongo.results import InsertOneResult
-from bson import ObjectId
+from bson import ObjectId, Decimal128
 from datetime import timedelta, datetime
+from decimal import Decimal
 
 def create_lesson(
     lesson_collection, 
@@ -62,7 +63,7 @@ def create_lesson(
             'first_name': student['first_name'],
             'last_name': student['last_name'],
             'parents_phone_numbers': student['parents_phone_numbers'],
-            'price': 30.0,
+            'price': Decimal128(Decimal("30.0")),
             'paid': True,
             'moved': False
         })
