@@ -55,7 +55,9 @@ from api.aggregates import (
     calculate_tutor_rating,
     get_student_review_count,
     get_tutor_review_count,
-    invalidate_tutor_review_cache
+    invalidate_tutor_review_cache,
+    invalidate_tutor_pay_cache,
+    invalidate_student_pay_cache
 )
 from api.lesson import (
     list_lessons_student_week,
@@ -999,6 +1001,8 @@ def create_new_lesson(tutor_id):
             return redirect( url_for('create_new_lesson', tutor_id=tutor_id) )
 
         flash(f"Pavyko sukurti pamoką", "success")
+        invalidate_tutor_pay_cache(tutor_id)
+        invalidate_student_pay_cache(student_ids)
         return redirect( url_for('manage_lessons', tutor_id=tutor_id) )
 
     else:
@@ -1016,8 +1020,22 @@ def delete_lesson(lesson_id, tutor_id):
         return redirect(url_for("index"))
 
     try:
+        # 1️⃣ Paimame studentų ID prieš trinant pamoką
+        lesson = db['lesson'].find_one({"_id": ObjectId(lesson_id)})
+        if lesson is None:
+            flash("Pamoka nerasta", "warning")
+            return redirect(url_for("manage_lessons", tutor_id=tutor_id))
+
+        student_ids = [str(s["student_id"]) for s in lesson.get("students", [])]
+
+        # 2️⃣ Triname pamoką
         func_delete_lesson(db['lesson'], lesson_id)
-        flash(f"Pavyko panaikinti pamoką", "success")
+        flash("Pavyko panaikinti pamoką", "success")
+
+        # 3️⃣ Išvalome Redis kešus
+        invalidate_tutor_pay_cache(tutor_id)
+        invalidate_student_pay_cache(student_ids)
+
     except Exception as e:
         flash(f"Nepavyko ištrinti pamokos: {e}", "warning")
 
