@@ -54,7 +54,8 @@ from api.aggregates import (
     pay_month_tutor,
     calculate_tutor_rating,
     get_student_review_count,
-    get_tutor_review_count
+    get_tutor_review_count,
+    invalidate_tutor_review_cache
 )
 from api.lesson import (
     list_lessons_student_week,
@@ -655,22 +656,31 @@ def add_tutor():
 
 @app.route('/tutor/<tutor_id>/create_review', methods=['GET', 'POST'])
 def add_new_review_tutor(tutor_id):
-    # Gauti mokinius is duombzes 
+    """
+    Leidžia dėstytojui sukurti atsiliepimą savo mokiniui.
+    Pridedant naują atsiliepimą:
+    🔹 įrašome jį į MongoDB
+    🔹 aktyviai išvalome Redis kešą (kad kito kvietimo metu duomenys būtų atnaujinti)
+    """
+
+    # 🔹 Gauti mokinius iš duomenų bazės
     students = get_tutor_students(db['tutor'], tutor_id)
 
+    # 🔹 Paruošiame dictionary {student_id: "Vardas Pavardė"}
     students = {stud['student_id']: f"{stud['first_name']} {stud['last_name']}"
                 for stud in students}
 
-    # Jei nera mokiniui -> flashcard
+    # 🔹 Jei dėstytojas neturi mokinių
     if not students:
         flash('Jūs neturite mokinių', 'warning')
         return redirect("/")
 
+    # 🔹 Apdorojame POST užklausą (forma pateikta)
     if request.method == 'POST':
         student_id = request.form.get('student_id')
         review_text = request.form.get('review_text')
 
-        # Išsaugoti atsiliepimą duomenų bazėje
+        # 🟩 Išsaugome atsiliepimą MongoDB duomenų bazėje
         create_review(
             db['review'], db['tutor'], db['student'],
             review_info={
@@ -681,38 +691,52 @@ def add_new_review_tutor(tutor_id):
             }
         )
 
+        # 🧹 Aktyviai išvalome Redis kešą — dėstytojo peržiūrų skaičius pasikeitė
+        invalidate_tutor_review_cache(tutor_id)
+
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
         return redirect(url_for('view_tutor', tutor_id=tutor_id))
-    
+
+    # 🔹 GET užklausa – rodome formą
     return render_template('review_tutor.html', students=students, tutor_id=tutor_id)
 
 
 @app.route('/student/<student_id>/create_review', methods=['GET', 'POST'])
 def add_new_review_student(student_id):
+    """
+    Leidžia studentui sukurti atsiliepimą savo dėstytojui.
+    🔹 Įrašius atsiliepimą:
+        - įrašome į MongoDB
+        - aktyviai išvalome Redis kešą dėstytojui
+    """
+
+    # 🔹 Patikriname studento sesiją
     if not check_student_session(session, student_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
 
+    # 🔹 Gauti studento priskirtus dėstytojus
     try:
         tutors = get_students_tutors(db['tutor'], student_id)
     except AssertionError:
         flash('Jūs neturite priskirtų mokytojų', 'warning')
         return redirect("/")
 
-    tutors = {tut['_id']: f"{tut['first_name']} {tut['last_name']}"
-                for tut in tutors}
+    # 🔹 Sukuriame dictionary {tutor_id: "Vardas Pavardė"}
+    tutors = {str(tut['_id']): f"{tut['first_name']} {tut['last_name']}" for tut in tutors}
 
-    # Jei nera mokytoju -> flashcard
-    if not students:
+    # 🔹 Jei nėra priskirtų dėstytojų
+    if not tutors:
         flash('Jūs neturite priskirtų mokytojų', 'warning')
-        return redirect(url_for('view_tutor', tutor_id=tutor_id))
+        return redirect("/")
 
+    # 🔹 POST užklausa (forma pateikta)
     if request.method == 'POST':
         tutor_id = request.form.get('tutor_id')
         review_text = request.form.get('review_text')
         rating = request.form.get('rating')
 
-        # Išsaugoti atsiliepimą duomenų bazėje
+        # 🟩 Išsaugome atsiliepimą MongoDB
         create_review(
             db['review'], db['tutor'], db['student'],
             review_info={
@@ -724,9 +748,13 @@ def add_new_review_student(student_id):
             }
         )
 
+        # 🧹 Aktyviai išvalome Redis kešą – dėstytojo peržiūrų skaičius gali pasikeisti
+        invalidate_tutor_review_cache(tutor_id)
+
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
         return redirect("/")
-    
+
+    # 🔹 GET užklausa – rodome formą
     return render_template('review_student.html', tutors=tutors, student_id=student_id)
 
 
