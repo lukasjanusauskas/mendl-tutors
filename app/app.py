@@ -64,7 +64,8 @@ from api.lesson import (
     delete_lesson as func_delete_lesson,
     create_lesson,
     change_lesson_date,
-    list_lessons_tutor_month
+    list_lessons_tutor_month,
+    list_lesson_student_month
 )
 
 from redis_api.redis_client import get_redis
@@ -1003,6 +1004,7 @@ def create_new_lesson(tutor_id):
         flash(f"Pavyko sukurti pamoką", "success")
         invalidate_tutor_pay_cache(tutor_id)
         invalidate_student_pay_cache(student_ids)
+        invalidate_student_lessons_count_cache(student_ids)
         return redirect( url_for('manage_lessons', tutor_id=tutor_id) )
 
     else:
@@ -1035,6 +1037,7 @@ def delete_lesson(lesson_id, tutor_id):
         # 3️⃣ Išvalome Redis kešus
         invalidate_tutor_pay_cache(tutor_id)
         invalidate_student_pay_cache(student_ids)
+        invalidate_student_lessons_count_cache(student_ids)
 
     except Exception as e:
         flash(f"Nepavyko ištrinti pamokos: {e}", "warning")
