@@ -58,7 +58,8 @@ from api.aggregates import (
     invalidate_tutor_review_cache,
     invalidate_tutor_pay_cache,
     invalidate_student_pay_cache,
-    invalidate_student_review_cache
+    invalidate_student_review_cache,
+    invalidate_tutor_rating_cache
 )
 from api.lesson import (
     list_lessons_student_week,
@@ -754,6 +755,7 @@ def add_new_review_student(student_id):
 
         # 🧹 Aktyviai išvalome Redis kešą – dėstytojo peržiūrų skaičius gali pasikeisti
         invalidate_tutor_review_cache(tutor_id)
+        invalidate_tutor_rating_cache(tutor_id)
 
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
         return redirect("/")
@@ -885,6 +887,7 @@ def student_revoke_review(student_id, review_id):
         tutor_oid = review.get("tutor", {}).get("tutor_id")
         tutor_id_str = str(tutor_oid)
         invalidate_tutor_review_cache(tutor_id_str)
+        invalidate_tutor_rating_cache(tutor_id_str)
         revoke_review(db['review'], review_id)
     except Exception as err:
         flash(str(err), 'danger')

@@ -117,32 +117,72 @@ def invalidate_student_review_cache(student_id: str):
         print(f"ℹ️ Kešas studentui {student_id} jau buvo tuščias")
 
 
+from bson import ObjectId
+
+
 def calculate_tutor_rating(review_collection, tutor_id: str):
+    """
+    Apskaičiuoja vidutinį dėstytojo įvertinimą pagal atsiliepimus.
+    🔹 Naudoja Redis kėšą, kad spartintų pakartotinius skaičiavimus
+    🔹 Įvertinimas apskaičiuojamas tik tiems atsiliepimams, kurie:
+        - priskirti šiam dėstytojui
+        - turi lauką 'rating'
+        - nėra atšaukti ('type' != 'REVOKED')
+        - for_tutor == True
+    """
+
+    cache_key = f"tutor_rating:{tutor_id}"
+
+    # 1️⃣ Pabandome gauti vertę iš Redis kėšo
+    cached = r.get(cache_key)
+    if cached:
+        try:
+            return float(cached)
+        except ValueError:
+            pass  # jei kėšas sugadintas, ignoruojame ir skaičiuojame iš naujo
+
+    # 2️⃣ Jei kėše nėra, atliekame MongoDB agregaciją
     aggregate_output_cursor = review_collection.aggregate([
-        { 
-            "$match": { 
+        {
+            "$match": {
                 "tutor.tutor_id": ObjectId(tutor_id),
+                "for_tutor": True,  # tik atsiliepimai skirti dėstytojui
                 "$or": [
-                    { "type": { "$exists": False } },
-                    { "type": { "$ne": "REVOKED" } }
-                ], 
-                "rating": { "$exists": True } 
+                    {"type": {"$exists": False}},
+                    {"type": {"$ne": "REVOKED"}}
+                ],
+                "rating": {"$exists": True}  # tik atsiliepimai su rating
             }
         },
-        { 
-            "$group": { 
+        {
+            "$group": {
                 "_id": None,
-                "average_rating": { "$avg": "$rating" }
+                "average_rating": {"$avg": "$rating"}  # apskaičiuojame vidurkį
             }
         }
     ])
 
+    # 3️⃣ Ištraukiame rezultatą iš kursoriaus
     try:
-        agg_doc = next( aggregate_output_cursor )
-        return agg_doc['average_rating']
-    except StopIteration:
-        return None
+        agg_doc = next(aggregate_output_cursor)
+        rating = agg_doc['average_rating']
 
+        # 4️⃣ Įrašome į Redis be laiko limito
+        if rating is not None:
+            r.set(cache_key, rating)
+
+        return rating
+
+    except StopIteration:
+        return None  # jei nėra įvertintų atsiliepimų
+
+def invalidate_tutor_rating_cache(tutor_id: str):
+    """
+    Aktyvus dėstytojo įvertinimo kėšo išvalymas.
+    Iškviečiamas kai atšaukiamas ar pakeičiamas atsiliepimas.
+    """
+    cache_key = f"tutor_rating:{tutor_id}"
+    r.delete(cache_key)
 
 def pay_month_tutor(lesson_collection, tutor_id: str):
     """
