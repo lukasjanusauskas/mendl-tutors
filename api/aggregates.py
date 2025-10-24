@@ -29,13 +29,14 @@ def get_tutor_review_count(review_collection, tutor_id: str):
         {
             "$match": {
                 "tutor.tutor_id": ObjectId(tutor_id),
+                "for_tutor": True,
                 "$or": [
                     {"type": {"$exists": False}},
                     {"type": {"$ne": "REVOKED"}}
                 ]
             }
         },
-        {"$count": "num_doc"},
+        {"$count": "num_doc"}
     ])
 
     # 3️⃣ Nustatome count; jei nėra dokumentų, skaičius = 0
@@ -62,25 +63,58 @@ def invalidate_tutor_review_cache(tutor_id: str):
         print(f"ℹ️ Kešas dėstytojui {tutor_id} jau buvo tuščias")
 
 def get_student_review_count(review_collection, student_id: str):
+    """
+    Apskaičiuoja, kiek atsiliepimų turi konkretus studentas.
+    🔹 Naudoja Redis kešą
+    🔹 Aktyviai invaliduoja duomenis keičiant
+    🔹 Jei atsiliepimų nėra, grąžina 0 ir įrašo į kešą
+    """
+    cache_key = f"student:{student_id}:review_count"
+
+    # 1️⃣ Bandome gauti reikšmę iš Redis kešo
+    cached_value = r.get(cache_key)
+    if cached_value is not None:
+        print("⚡️ Grąžiname reikšmę iš Redis kešo (student)")
+        return int(cached_value)
+
+    # 2️⃣ Jei keše nėra, atliekame MongoDB agregaciją
+    print("📊 Atliekame MongoDB užklausą studentui...")
     aggregate_output_cursor = review_collection.aggregate([
-        { 
+        {
             "$match": {
                 "student.student_id": ObjectId(student_id),
-                "$or": [ 
-                    {"type": {"$exists": False}}, 
+                "for_tutor": False,
+                "$or": [
+                    {"type": {"$exists": False}},
                     {"type": {"$ne": "REVOKED"}}
-                ]}
+                ]
+            }
         },
-        {
-            "$count": "num_doc"
-        }
+        {"$count": "num_doc"},
     ])
 
+    # 3️⃣ Nustatome count; jei nėra dokumentų, skaičius = 0
     try:
-        agg_doc = next( aggregate_output_cursor )
-        return agg_doc['num_doc']
+        agg_doc = next(aggregate_output_cursor)
+        count = agg_doc['num_doc']
     except StopIteration:
-        return None
+        count = 0
+
+    # 4️⃣ Įrašome į Redis (net jei count = 0)
+    r.set(cache_key, count)
+
+    return count
+
+def invalidate_student_review_cache(student_id: str):
+    """
+    Aktyvus studento kešo išvalymas.
+    """
+    cache_key = f"student:{student_id}:review_count"
+    deleted = r.delete(cache_key)
+    if deleted:
+        print(f"🧹 Redis kešas išvalytas studentui {student_id}")
+    else:
+        print(f"ℹ️ Kešas studentui {student_id} jau buvo tuščias")
 
 
 def calculate_tutor_rating(review_collection, tutor_id: str):
