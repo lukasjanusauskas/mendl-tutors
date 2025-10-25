@@ -71,6 +71,7 @@ from api.lesson import (
 )
 
 from redis_api.redis_client import get_redis
+from redis.exceptions import LockError
 
 load_dotenv()
 
@@ -976,6 +977,10 @@ def change_lesson_time(lesson_id, tutor_id):
         change_lesson_date(db['lesson'], lesson_id, new_time)
 
         flash(f"Sėkmingai perkelta pamoka", "success")
+
+    except LockError:
+        flash(f'Nepavyko perkelti pamokos, ją šiuo metu redaguoja kitas naudotojas', 'warning')
+
     except Exception as e:
         flash(f'Nepavyko perkelti pamokos {e}', 'warning')
 
@@ -1049,6 +1054,9 @@ def delete_lesson(lesson_id, tutor_id):
         # 3️⃣ Išvalome Redis kešus
         invalidate_tutor_pay_cache(tutor_id)
         invalidate_student_pay_cache(student_ids)
+
+    except LockError:
+        flash(f"Šiuo metu pamoką redaguoja kitas naudotojas, pabandykite vėliau.", "alert")
 
     except Exception as e:
         flash(f"Nepavyko ištrinti pamokos: {e}", "warning")

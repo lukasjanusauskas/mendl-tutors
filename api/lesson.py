@@ -8,6 +8,9 @@ from bson import ObjectId, Decimal128
 from datetime import timedelta, datetime
 from decimal import Decimal
 
+from redis_api.redis_client import get_redis
+redis_client = get_redis()
+
 def create_lesson(
     lesson_collection, 
     tutor_collection,
@@ -113,7 +116,7 @@ def create_lesson(
     return lesson_collection.insert_one(lesson)
 
 
-def add_student_to_lesson(
+def add_student_to_lesson_wo_lock(
     lesson_collection,
     student_collection,
     lesson_id: str,
@@ -124,7 +127,7 @@ def add_student_to_lesson(
     # Rasti pamoką ir mokinį
     lesson = lesson_collection.find_one({'_id': ObjectId(lesson_id)})
     student = student_collection.find_one({'_id': ObjectId(student_id)})
-
+    
     if not lesson:
         raise ValueError('Did not find lesson by id')
     elif not student:
@@ -151,7 +154,26 @@ def add_student_to_lesson(
     )
 
 
-def change_lesson_date(
+def add_student_to_lesson(
+    lesson_collection,
+    student_collection,
+    lesson_id: str,
+    student_id: str,
+):
+
+    # Redis lock
+    lock_key = f"lock:lesson:{lesson_id}"
+
+    with redis_client.lock(lock_key, timeout=10) as redis_lock:
+        return add_student_to_lesson_wo_lock(
+            lesson_collection,
+            student_collection,
+            lesson_id,
+            student_id
+        )
+
+
+def change_lesson_date_wo_lock(
     lesson_collection,
     lesson_id: str,
     time: str
@@ -185,7 +207,24 @@ def change_lesson_date(
     )
 
 
-def delete_lesson(
+def change_lesson_date(
+    lesson_collection,
+    lesson_id: str,
+    time: str
+):
+
+    # Redis lock
+    lock_key = f"lock:lesson:{lesson_id}"
+
+    with redis_client.lock(lock_key, timeout=10) as redis_lock:
+        return change_lesson_date_wo_lock(
+            lesson_collection,
+            lesson_id,
+            time
+        )
+
+
+def delete_lesson_wo_lock(
     lesson_collection,
     lesson_id: str
 ) -> dict:
@@ -203,6 +242,21 @@ def delete_lesson(
         { "_id": ObjectId(lesson_id) },
         { "$set": {"type": "DELETED"} }
     )
+
+
+def delete_lesson(
+    lesson_collection,
+    lesson_id: str
+) -> dict:
+
+    # Redis lock
+    lock_key = f"lock:lesson:{lesson_id}"
+
+    with redis_client.lock(lock_key, timeout=10) as redis_lock:
+        return delete_lesson_wo_lock(
+            lesson_collection,
+            lesson_id
+        )
 
 
 def list_lessons_tutor_week(
@@ -409,7 +463,7 @@ def list_lesson_student_month(
     return lesson_list
 
 
-def change_lesson_price_student(
+def change_lesson_price_student_wo_lock(
     lesson_collection,
     lesson_id: int,
     student_id: int,
@@ -444,6 +498,25 @@ def change_lesson_price_student(
     )
 
 
+def change_lesson_price_student(
+    lesson_collection,
+    lesson_id: int,
+    student_id: int,
+    price: float
+) -> dict:
+
+    # Redis lock
+    lock_key = f"lock:lesson:{lesson_id}"
+
+    with redis_client.lock(lock_key, timeout=10) as redis_lock:
+        return change_lesson_price_student_wo_lock(
+            lesson_collection,
+            lesson_id,
+            student_id,
+            price
+        )
+
+
 def delete_student_from_lesson(
     lesson_collection,
     student_collection,
@@ -469,7 +542,7 @@ def delete_student_from_lesson(
     )
 
 
-def change_lesson_time_student(
+def change_lesson_time_student_wo_lock(
     lesson_collection,
     tutor_collection,
     student_collection,
