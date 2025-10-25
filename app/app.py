@@ -306,14 +306,13 @@ def add_student():
 def delete_student_ui(student_id):
     try:
         try:
-            with redis_lock(f"student:{student_id}"):
-                result = delete_student(db.student, db.tutor, student_id)
+            result = delete_student(db.student, db.tutor, student_id)
 
             if result["deleted"]:
                 flash("Mokinys sėkmingai ištrintas!", "success")
             else:
                 flash("Mokinys nerastas.", "warning")
-
+                
         except LockError:
             flash("Šiuo metu mokinys redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
 
@@ -390,13 +389,8 @@ def sign_up_student():
                 student_info['subjects'] = []
 
             # Sukuriame studentą
-            try:
-                with redis_lock("students:write"):
-                    new_student = create_new_student(db.student, student_info)
-                student_id = new_student.inserted_id
-
-            except LockError:
-                return render_template('sign_up_student.html', error='Kiti naudotojai šiuo metu registruoja mokinį, pabandykite vėliau')
+            new_student = create_new_student(db.student, student_info)
+            student_id = new_student.inserted_id
 
             session['user_id'] = str(student_id)
             session['session_type'] = STUDENT_TYPE
@@ -448,13 +442,8 @@ def sign_up_tutor():
                     "max_class": int(max_class)
                 })
 
-            try:
-                with redis_lock("tutors:write"):
-                    insert_res = create_new_tutor(db.tutor, tutor_info)
-                tutor_id = insert_res.inserted_id
-
-            except LockError:
-                return render_template('sign_up_tutor.html', error='Kiti naudotojai šiuo metu registruoja korepetitorių, pabandykite vėliau')
+            insert_res = create_new_tutor(db.tutor, tutor_info)
+            tutor_id = insert_res.inserted_id
 
             session['user_id'] = str(tutor_id)
             session['session_type'] = STUDENT_TYPE
@@ -631,14 +620,13 @@ def view_tutor(tutor_id):
 def remove_tutor(tutor_id):
     try:
         try:
-            with redis_lock(f"tutor:{tutor_id}"):
-                result = delete_tutor(db.tutor, tutor_id)
+            result = delete_tutor(db.tutor, tutor_id)
 
             if result["deleted"]:
                 flash("Korepetitorius sėkmingai ištrintas!", "success")
             else:
                 flash("Korepetitorius nerastas.", "warning")
-
+                
         except LockError:
             flash("Šiuo metu korepetitorius redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
     except Exception as e:
@@ -678,16 +666,9 @@ def add_tutor():
                     "max_class": int(max_class)
                 })
 
-            try:
-                with redis_lock("tutors:write"):
-                    create_new_tutor(db.tutor, tutor_info)
-
-                flash("Korepetitorius sėkmingai pridėtas!", "success")
-                return redirect(url_for("tutors"))
-
-            except LockError:
-                flash("Korepetitorių sąrašas šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
-                return redirect(url_for("tutors"))
+            create_new_tutor(db.tutor, tutor_info)
+            flash("Korepetitorius sėkmingai pridėtas!", "success")
+            return redirect(url_for("tutors"))
         except Exception as e:
             flash(str(e), "danger")
 
@@ -827,24 +808,23 @@ def add_student_to_tutor(tutor_id):
             subject = request.form.get("subject")
 
             try:
-                    try:
-                        with redis_lock(f"tutor:{tutor_id}"):
-                            result = assign_student_to_tutor(
-                                db.tutor,
-                                db.student,
-                                tutor_id,
-                                student_id,
-                                subject
-                            )
-
-                    except LockError:
-                        flash('Korepetitorius šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.', 'warning')
-                        return redirect(url_for('view_tutor', tutor_id=tutor_id))
+                try:
+                    result = assign_student_to_tutor(
+                        db.tutor,
+                        db.student,
+                        tutor_id,
+                        student_id,
+                        subject
+                    )
                     if result.modified_count > 0:
                         flash("Mokinys sėkmingai priskirtas!", "success")
                         return redirect(url_for("view_tutor", tutor_id=tutor_id))
                     else:
                         flash("Nepavyko priskirti mokinio.", "danger")
+                        
+                except LockError:
+                    flash('Korepetitorius šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.', 'warning')
+                    return redirect(url_for('view_tutor', tutor_id=tutor_id))
                     
             except Exception as e:
                 flash(f"Klaida: {str(e)}", "danger")
@@ -867,14 +847,13 @@ def remove_student_from_tutor_route(tutor_id, student_id):
 
     try:
         try:
-            with redis_lock(f"tutor:{tutor_id}"):
-                result = remove_student_from_tutor(db.tutor, tutor_id, student_id)
+            result = remove_student_from_tutor(db.tutor, tutor_id, student_id)
 
             if result["removed"]:
                 flash("Mokinys sėkmingai pašalintas!", "success")
             else:
                 flash("Nepavyko pašalinti mokinio.", "danger")
-
+                
         except LockError:
             flash('Korepetitorius šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.', 'warning')
             
