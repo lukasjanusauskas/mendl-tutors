@@ -33,53 +33,54 @@ def create_new_student(
     try:
         student: dict = {}
 
-    # 1️⃣ Tikriname privalomus laukus
-    required_arguments = [
-        'first_name', 
-        'last_name', 
-        'date_of_birth', 
-        'class', 
-        'subjects', 
-        'password',
-        'parents_phone_numbers'
-    ]
-    for field in required_arguments:
-        if field not in student_info:
-            raise KeyError(f'Truksta {field}')
-        student[field] = student_info[field]
-
-    # 2️⃣ Tikriname papildomus laukus
-    optional_arguments = ['student_phone_number', 'student_email', 'parents_email','second_name']
-    for field in optional_arguments:
-        if field in student_info:
+        # 1️⃣ Tikriname privalomus laukus
+        required_arguments = [
+            'first_name', 
+            'last_name', 
+            'date_of_birth', 
+            'class', 
+            'subjects', 
+            'password',
+            'parents_phone_numbers'
+        ]
+        for field in required_arguments:
+            if field not in student_info:
+                raise KeyError(f'Truksta {field}')
             student[field] = student_info[field]
 
-    # 3️⃣ Konvertuojame gimimo datą į datetime
-    date_of_birth_date = parse_date_of_birth(student_info['date_of_birth'])
-    student['date_of_birth'] = date_of_birth_date
+        # 2️⃣ Tikriname papildomus laukus
+        optional_arguments = ['student_phone_number', 'student_email', 'parents_email','second_name']
+        for field in optional_arguments:
+            if field in student_info:
+                student[field] = student_info[field]
 
-    # 4️⃣ Tikriname subjects
-    if not isinstance(student['subjects'], list) or len(student['subjects']) == 0:
-        raise ValueError("subjects turi buti ne tuscias masyvas")
+        # 3️⃣ Konvertuojame gimimo datą į datetime
+        date_of_birth_date = parse_date_of_birth(student_info['date_of_birth'])
+        student['date_of_birth'] = date_of_birth_date
 
-    # 5️⃣ Tikriname, ar toks studentas jau egzistuoja (first_name + date_of_birth)
-    date_of_birth_start = date_of_birth_date
-    date_of_birth_end = date_of_birth_start + timedelta(days=1)
-    existing_student = student_collection.find_one({
-        "first_name": student['first_name'],
-        "date_of_birth": {"$gte": date_of_birth_start, "$lt": date_of_birth_end},
-    })
-    if existing_student:
-        raise ValueError("Toks mokinys jau egzistuoja!")
+        # 4️⃣ Tikriname subjects
+        if not isinstance(student['subjects'], list) or len(student['subjects']) == 0:
+            raise ValueError("subjects turi buti ne tuscias masyvas")
 
-    password_encoded = student['password'].encode('utf-8')
-    hash_algo = hashlib.sha256()
-    hash_algo.update(password_encoded)
-    student['password_hashed'] = hash_algo.hexdigest()
-    del student['password']
+        # 5️⃣ Tikriname, ar toks studentas jau egzistuoja (first_name + date_of_birth)
+        date_of_birth_start = date_of_birth_date
+        date_of_birth_end = date_of_birth_start + timedelta(days=1)
+        existing_student = student_collection.find_one({
+            "first_name": student['first_name'],
+            "date_of_birth": {"$gte": date_of_birth_start, "$lt": date_of_birth_end},
+        })
+        if existing_student:
+            raise ValueError("Toks mokinys jau egzistuoja!")
 
-    # 6️⃣ Įrašome į DB
-        return student_collection.insert_one(student)
+        password_encoded = student['password'].encode('utf-8')
+        hash_algo = hashlib.sha256()
+        hash_algo.update(password_encoded)
+        student['password_hashed'] = hash_algo.hexdigest()
+        del student['password']
+
+        # 6️⃣ Įrašome į DB
+        result = student_collection.insert_one(student)
+        return result
     finally:
         try:
             lock.release()
@@ -115,19 +116,19 @@ def delete_student(student_collection, tutor_collection, student_id: str) -> dic
     Ištrina studentą iš DB pagal _id.
     Taip pat pašalina studentą iš visų korepetitorių 'students_subjects'.
     """
-    lock = get_redis().lock(f"student:{student_id}", timeout=10)
+    lock = redis_client.lock(f"student:{student_id}", timeout=10)
     if not lock.acquire(blocking=True, blocking_timeout=5):
         raise LockError("Mokinys šiuo metu redaguojamas")
     
     try:
         result: DeleteResult = student_collection.delete_one({"_id": ObjectId(student_id)})
 
-    if result.deleted_count == 1:
-        # ištrinam studentą iš visų tutor.students_subjects
-        tutor_collection.update_many(
-            {},
-            {"$pull": {"students_subjects": {"student.student_id": student_id}}}
-        )
+        if result.deleted_count == 1:
+            # ištrinam studentą iš visų tutor.students_subjects
+            tutor_collection.update_many(
+                {},
+                {"$pull": {"students_subjects": {"student.student_id": student_id}}}
+            )
             return {"deleted": True}
         else:
             return {"deleted": False}
