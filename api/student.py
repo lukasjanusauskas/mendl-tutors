@@ -3,6 +3,10 @@ from api.utils import (
     parse_date_of_birth
 )
 from api.connection import get_db
+from redis_api.redis_client import get_redis
+from redis.exceptions import LockError
+
+redis_client = get_redis()
 from pymongo.results import (
     InsertOneResult,
     UpdateResult,
@@ -22,8 +26,12 @@ def create_new_student(
     Grazina InsertOneResult su inserted_id ir acknowledged.
     Patikrina ar toks studentas jau egzistuoja (pagal first_name ir gimimo datą).
     """
-
-    student: dict = {}
+    lock = redis_client.lock("students:write", timeout=10)
+    if not lock.acquire(blocking=True, blocking_timeout=5):
+        raise LockError("Mokinių sąrašas šiuo metu redaguojamas")
+    
+    try:
+        student: dict = {}
 
     # 1️⃣ Tikriname privalomus laukus
     required_arguments = [
@@ -71,7 +79,12 @@ def create_new_student(
     del student['password']
 
     # 6️⃣ Įrašome į DB
-    return student_collection.insert_one(student)
+        return student_collection.insert_one(student)
+    finally:
+        try:
+            lock.release()
+        except:
+            pass
 
 
 def get_student_by_id(student_collection, student_id: str):
@@ -102,7 +115,12 @@ def delete_student(student_collection, tutor_collection, student_id: str) -> dic
     Ištrina studentą iš DB pagal _id.
     Taip pat pašalina studentą iš visų korepetitorių 'students_subjects'.
     """
-    result: DeleteResult = student_collection.delete_one({"_id": ObjectId(student_id)})
+    lock = get_redis().lock(f"student:{student_id}", timeout=10)
+    if not lock.acquire(blocking=True, blocking_timeout=5):
+        raise LockError("Mokinys šiuo metu redaguojamas")
+    
+    try:
+        result: DeleteResult = student_collection.delete_one({"_id": ObjectId(student_id)})
 
     if result.deleted_count == 1:
         # ištrinam studentą iš visų tutor.students_subjects
@@ -110,9 +128,14 @@ def delete_student(student_collection, tutor_collection, student_id: str) -> dic
             {},
             {"$pull": {"students_subjects": {"student.student_id": student_id}}}
         )
-        return {"deleted": True}
-    else:
-        return {"deleted": False}
+            return {"deleted": True}
+        else:
+            return {"deleted": False}
+    finally:
+        try:
+            lock.release()
+        except:
+            pass
 
 
 def get_students_tutors(
