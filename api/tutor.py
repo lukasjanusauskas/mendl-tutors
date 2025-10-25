@@ -11,6 +11,10 @@ from api.utils import (
     parse_date_of_birth
 )
 import hashlib
+from redis_api.redis_client import get_redis
+from redis.exceptions import LockError
+
+redis_client = get_redis()
 from pymongo.results import (
     InsertOneResult,
     UpdateResult,
@@ -27,8 +31,12 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
     Grazina InsertOneResult su inserted_id ir acknowledged.
     Patikrina ar toks korepetitorius jau egzistuoja (pagal full_name ir gimimo datą).
     """
-
-    tutor: dict = {}
+    lock = redis_client.lock("tutors:write", timeout=10)
+    if not lock.acquire(blocking=True, blocking_timeout=5):
+        raise LockError("Korepetitorių sąrašas šiuo metu redaguojamas")
+    
+    try:
+        tutor: dict = {}
 
     # 1️⃣ Tikriname privalomus laukus
     required_arguments = [
@@ -83,7 +91,12 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
     tutor['students_subjects'] = []
 
     # 9️⃣ Įrašome į DB
-    return tutor_collection.insert_one(tutor)
+        return tutor_collection.insert_one(tutor)
+    finally:
+        try:
+            lock.release()
+        except:
+            pass
 
 
 def assign_student_to_tutor(
@@ -97,8 +110,12 @@ def assign_student_to_tutor(
     Priskirti studenta prie korepetitoriaus pagal subject.
     Grazina UpdateResult su informacija apie update.
     """
-
-    # 1️⃣ Paimti studenta is DB
+    lock = get_redis().lock(f"tutor:{tutor_id}", timeout=10)
+    if not lock.acquire(blocking=True, blocking_timeout=5):
+        raise LockError("Korepetitorius šiuo metu redaguojamas")
+    
+    try:
+        # 1️⃣ Paimti studenta is DB
     student = student_collection.find_one({"_id": ObjectId(student_id)})
     if not student:
         raise ValueError("Studentas su tokiu ID nerastas")
@@ -140,6 +157,11 @@ def assign_student_to_tutor(
     )
 
     return update_result
+    finally:
+        try:
+            lock.release()
+        except:
+            pass
 
 def get_tutor_students(tutor_collection, tutor_id: str) -> list[dict]:
     """
@@ -233,8 +255,18 @@ def delete_tutor(tutor_collection, tutor_id: str) -> dict:
     Ištrina korepetitorių iš DB pagal _id.
     Grazina dict su info apie delete.
     """
-    result = tutor_collection.delete_one({"_id": ObjectId(tutor_id)})
-    return {"deleted": result.deleted_count == 1}
+    lock = get_redis().lock(f"tutor:{tutor_id}", timeout=10)
+    if not lock.acquire(blocking=True, blocking_timeout=5):
+        raise LockError("Korepetitorius šiuo metu redaguojamas")
+    
+    try:
+        result = tutor_collection.delete_one({"_id": ObjectId(tutor_id)})
+        return {"deleted": result.deleted_count == 1}
+    finally:
+        try:
+            lock.release()
+        except:
+            pass
 
 def remove_student_from_tutor(
     tutor_collection,
@@ -244,8 +276,12 @@ def remove_student_from_tutor(
     """
     Pašalina studentą iš konkretaus korepetitoriaus students_subjects pagal student_id.
     """
-
-    # Patikrinti ar egzistuoja tutor
+    lock = get_redis().lock(f"tutor:{tutor_id}", timeout=10)
+    if not lock.acquire(blocking=True, blocking_timeout=5):
+        raise LockError("Korepetitorius šiuo metu redaguojamas")
+    
+    try:
+        # Patikrinti ar egzistuoja tutor
     tutor = tutor_collection.find_one({'_id': ObjectId(tutor_id)})
     if not tutor:
         raise ValueError('Tokio korepetitoriaus nera')
@@ -268,6 +304,11 @@ def remove_student_from_tutor(
         return {"removed": True}
     else:
         return {"removed": False}
+    finally:
+        try:
+            lock.release()
+        except:
+            pass
 
 
 if __name__ == "__main__":
