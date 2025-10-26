@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 
+{% if session.session_type == 'admin' %}
+{% set back_url = url_for('students') %}
+
+{% elif session.session_type == 'student' %}
+{% set back_url = url_for('index') %}
+{% endif %}
+
 {% block title %}Peržiūra: {{ student.first_name }} {{ student.last_name }}{% endblock %}
 
 {% block content %}

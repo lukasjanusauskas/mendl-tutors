@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-
+{% set back_url = url_for('manage_lessons', tutor_id=tutor._id) %}
 {% block title %}Pamokos registravimas:{% endblock %}
 
 {% block content %}

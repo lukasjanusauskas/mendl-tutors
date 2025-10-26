@@ -1,16 +1,18 @@
 {% extends "base.html" %}
-
+{% set back_url = url_for('view_tutor', tutor_id=tutor._id) %}
 {% block title %}Mėnesio atsiliepimai{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-
-    <h2 class="mb-4 text-center">📅 Atsiliepimai</h2>
+    <div class="text-center mb-5">
+        <h1 class="fw-bold text-primary">📅 Atsiliepimai</h1>
+        <p class="text-muted">Peržiūrėkite visus gautus ir parašytus atsiliepimus</p>
+    </div>
 
     <!-- GAUTI ATSILIEPIMAI -->
     <div class="card shadow-sm mb-5">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Gauti atsiliepimai</h4>
+            <h4 class="mb-0"><i class="bi bi-inbox-fill"></i> Gauti atsiliepimai</h4>
             <span class="badge bg-light text-success">{{ recieved_reviews|length }}</span>
         </div>
         <div class="card-body">
@@ -19,7 +21,11 @@
                     <div class="card mb-3 border-success-subtle">
                         <div class="card-body">
                             {% for key, review_data in review.items() %}
-                                <p><strong>{{ key }}:</strong> {{ review_data }}</p>
+                                {% if key in ['Įvertinimas'] %}
+                                    <p><strong>{{ key }}:</strong> <i class="bi bi-star-fill text-warning"></i> {{ review_data }}</p>
+                                {% else %}
+                                    <p><strong>{{ key }}:</strong> {{ review_data }}</p>
+                                {% endif %}
                             {% endfor %}
                         </div>
                     </div>
@@ -33,7 +39,7 @@
     <!-- PARAŠYTI ATSILIEPIMAI -->
     <div class="card shadow-sm mb-5">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Parašyti atsiliepimai</h4>
+            <h4 class="mb-0"><i class="bi bi-pencil-square"></i> Parašyti atsiliepimai</h4>
             <span class="badge bg-light text-primary">{{ written_reviews|length }}</span>
         </div>
         <div class="card-body">

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set back_url = url_for('view_tutor', tutor_id=tutor._id) %}
 
 {% block title %}Parašyti atsiliepimą studentui{% endblock %}
 
