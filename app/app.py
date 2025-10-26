@@ -684,6 +684,12 @@ def add_new_review_tutor(tutor_id):
     🔹 aktyviai išvalome Redis kešą (kad kito kvietimo metu duomenys būtų atnaujinti)
     """
 
+    # Gauname korepetitoriaus informaciją
+    tutor = get_tutor_by_id(db['tutor'], tutor_id)
+    if not tutor:
+        flash('Korepetitorius nerastas', 'danger')
+        return redirect(url_for('index'))
+
     # 🔹 Gauti mokinius iš duomenų bazės
     students = get_tutor_students(db['tutor'], tutor_id)
 
@@ -719,7 +725,7 @@ def add_new_review_tutor(tutor_id):
         return redirect(url_for('view_tutor', tutor_id=tutor_id))
 
     # 🔹 GET užklausa – rodome formą
-    return render_template('review_tutor.html', students=students, tutor_id=tutor_id)
+    return render_template('review_tutor.html', students=students, tutor_id=tutor_id, tutor=tutor)
 
 
 @app.route('/student/<student_id>/create_review', methods=['GET', 'POST'])
@@ -730,6 +736,12 @@ def add_new_review_student(student_id):
         - įrašome į MongoDB
         - aktyviai išvalome Redis kešą dėstytojui
     """
+
+    # Gauname mokinio informaciją
+    student = get_student_by_id(db['student'], student_id)
+    if not student:
+        flash('Studentas nerastas', 'danger')
+        return redirect(url_for('index'))
 
     # 🔹 Patikriname studento sesiją
     if not check_student_session(session, student_id):
@@ -777,7 +789,7 @@ def add_new_review_student(student_id):
         return redirect("/")
 
     # 🔹 GET užklausa – rodome formą
-    return render_template('review_student.html', tutors=tutors, student_id=student_id)
+    return render_template('review_student.html', tutors=tutors, student_id=student_id, student = student)
 
 
 @app.route('/tutor/<tutor_id>/review_list', methods=['GET'])
@@ -788,11 +800,17 @@ def show_reviews_tutor(tutor_id):
         return redirect(url_for("index"))
 
     recieved_reviews, written_reviews = list_reviews_tutor(db['review'], tutor_id)
+
+    tutor = get_tutor_by_id(db['tutor'], tutor_id)
+    if not tutor:
+        flash('Korepetitorius nerastas', 'danger')
+        return redirect(url_for('index'))
     
     return render_template('review_view.html',
                            tutor_id=tutor_id,
                            written_reviews=written_reviews,
-                           recieved_reviews=recieved_reviews)
+                           recieved_reviews=recieved_reviews,
+                           tutor = tutor)
 
 
 @app.route("/tutor/<tutor_id>/add_student", methods=["GET", "POST"])
@@ -872,10 +890,17 @@ def show_reviews_student(student_id):
 
     recieved_reviews, written_reviews = list_reviews_student(db['review'], student_id)
 
+    student = get_student_by_id(db['student'], student_id)
+    if not student:
+        flash('Studentas nerastas', 'danger')
+        return redirect(url_for('index'))
+
     return render_template('review_view_student.html',
                            student_id=student_id,
                            written_reviews=written_reviews,
-                           recieved_reviews=recieved_reviews)
+                           recieved_reviews=recieved_reviews,
+                           student = student)
+    
 
 
 @app.route('/tutor/revoke_review/<tutor_id>/<review_id>', methods=['GET'])
@@ -883,6 +908,11 @@ def tutor_revoke_review(tutor_id, review_id):
     if not check_tutor_session(session, tutor_id=tutor_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
+
+    tutor = get_tutor_by_id(db['tutor'], tutor_id)
+    if not tutor:
+        flash('Korepetitorius nerastas', 'danger')
+        return redirect(url_for('index'))
 
     try:
         review = db['review'].find_one({"_id": ObjectId(review_id)})
@@ -896,7 +926,7 @@ def tutor_revoke_review(tutor_id, review_id):
 
     flash('Sėkmingai atsiimtas atsiliepimas', 'success')
 
-    return redirect(url_for('show_reviews_tutor', tutor_id=tutor_id))
+    return redirect(url_for('show_reviews_tutor', tutor_id=tutor_id, tutor = tutor))
 
 
 @app.route('/student/revoke_review/<student_id>/<review_id>', methods=['GET'])
@@ -971,6 +1001,11 @@ def manage_lessons(tutor_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
 
+    tutor = get_tutor_by_id(db['tutor'], tutor_id)
+    if not tutor:
+        flash('Korepetitorius nerastas', 'danger')
+        return redirect(url_for('index'))
+
     list_lessons = list_lessons_tutor_month(
         db['lesson'],
         db['tutor'],
@@ -982,7 +1017,8 @@ def manage_lessons(tutor_id):
     return render_template(
         'lesson_main.html',
         tutor_id=tutor_id,
-        lessons=list_lessons
+        lessons=list_lessons,
+        tutor = tutor
     )
 
 
@@ -1015,6 +1051,11 @@ def create_new_lesson(tutor_id):
     if not check_tutor_session(session, tutor_id=tutor_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
+    
+    tutor = get_tutor_by_id(db['tutor'], tutor_id)
+    if not tutor:
+        flash('Korepetitorius nerastas', 'danger')
+        return redirect(url_for('index'))
 
     if request.method == "POST":
         # Get request data
@@ -1040,19 +1081,19 @@ def create_new_lesson(tutor_id):
         except Exception as e:
             traceback.print_exc()
             flash(f"Nepavyko sukurti pamokos: {e}", "alert")
-            return redirect( url_for('create_new_lesson', tutor_id=tutor_id) )
+            return redirect( url_for('create_new_lesson', tutor_id=tutor_id, tutor = tutor) )
 
         flash(f"Pavyko sukurti pamoką", "success")
         invalidate_tutor_pay_cache(tutor_id)
         invalidate_student_pay_cache(student_ids)
-        return redirect( url_for('manage_lessons', tutor_id=tutor_id) )
+        return redirect( url_for('manage_lessons', tutor_id=tutor_id, tutor = tutor) )
 
     else:
         # Get list of students
         students = get_tutor_students(db['tutor'], tutor_id=tutor_id)
 
         # Show template
-        return render_template('create_lesson.html', tutor_id=tutor_id, students=students)
+        return render_template('create_lesson.html', tutor_id=tutor_id, students=students, tutor = tutor)
     
 
 @app.route("/tutor/delete_lesson/<lesson_id>/<tutor_id>", methods=["GET", "POST"])
@@ -1093,8 +1134,13 @@ def edit_lesson(lesson_id, tutor_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
 
+    tutor = get_tutor_by_id(db['tutor'], tutor_id)
+    if not tutor:
+        flash("Korepetitorius nerastas", "warning")
+        return redirect(url_for("index"))
+
     lesson = db['lesson'].find_one({'_id': ObjectId(lesson_id)})
-    return render_template("edit_lesson.html", lesson=lesson, tutor_id=tutor_id)
+    return render_template("edit_lesson.html", lesson=lesson, tutor_id=tutor_id, tutor = tutor)
 
 def generate_jwt_token(user_id, user_type, user_name):
     """Generate a JWT token for authenticated user"""
