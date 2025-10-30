@@ -10,21 +10,21 @@ r = get_redis()
 def get_tutor_review_count(review_collection, tutor_id: str):
     """
     Apskaičiuoja, kiek atsiliepimų turi konkretus dėstytojas.
-    🔹 Naudoja Redis kešą
-    🔹 Aktyviai invaliduoja duomenis keičiant
-    🔹 Jei atsiliepimų nėra, grąžina 0 ir įrašo į kešą
+    Naudoja Redis kešą
+    Aktyviai invaliduoja duomenis keičiant
+    Jei atsiliepimų nėra, grąžina 0 ir įrašo į kešą
     """
 
     cache_key = f"tutor:{tutor_id}:review_count"
 
-    # 1️⃣ Bandome gauti reikšmę iš Redis kešo
+    # Bandome gauti reikšmę iš Redis kešo
     cached_value = r.get(cache_key)
     if cached_value is not None:
-        print("⚡️ Grąžiname reikšmę iš Redis kešo")
+        print("Grąžiname reikšmę iš Redis kešo")
         return int(cached_value)
 
-    # 2️⃣ Jei keše nėra, atliekame MongoDB agregaciją
-    print("📊 Atliekame MongoDB užklausą...")
+    # Jei keše nėra, atliekame MongoDB agregaciją
+    print("Atliekame MongoDB užklausą...")
     aggregate_output_cursor = review_collection.aggregate([
         {
             "$match": {
@@ -39,14 +39,14 @@ def get_tutor_review_count(review_collection, tutor_id: str):
         {"$count": "num_doc"}
     ])
 
-    # 3️⃣ Nustatome count; jei nėra dokumentų, skaičius = 0
+    # Nustatome count; jei nėra dokumentų, skaičius = 0
     try:
         agg_doc = next(aggregate_output_cursor)
         count = agg_doc['num_doc']
     except StopIteration:
         count = 0
 
-    # 4️⃣ Įrašome į Redis (net jei count = 0)
+    # Įrašome į Redis (net jei count = 0)
     r.set(cache_key, count)
 
     return count
@@ -58,27 +58,27 @@ def invalidate_tutor_review_cache(tutor_id: str):
     cache_key = f"tutor:{tutor_id}:review_count"
     deleted = r.delete(cache_key)
     if deleted:
-        print(f"🧹 Redis kešas išvalytas dėstytojui {tutor_id}")
+        print(f"Redis kešas išvalytas dėstytojui {tutor_id}")
     else:
-        print(f"ℹ️ Kešas dėstytojui {tutor_id} jau buvo tuščias")
+        print(f"Kešas dėstytojui {tutor_id} jau buvo tuščias")
 
 def get_student_review_count(review_collection, student_id: str):
     """
     Apskaičiuoja, kiek atsiliepimų turi konkretus studentas.
-    🔹 Naudoja Redis kešą
-    🔹 Aktyviai invaliduoja duomenis keičiant
-    🔹 Jei atsiliepimų nėra, grąžina 0 ir įrašo į kešą
+    Naudoja Redis kešą
+    Aktyviai invaliduoja duomenis keičiant
+    Jei atsiliepimų nėra, grąžina 0 ir įrašo į kešą
     """
     cache_key = f"student:{student_id}:review_count"
 
-    # 1️⃣ Bandome gauti reikšmę iš Redis kešo
+    # Bandome gauti reikšmę iš Redis kešo
     cached_value = r.get(cache_key)
     if cached_value is not None:
-        print("⚡️ Grąžiname reikšmę iš Redis kešo (student)")
+        print("Grąžiname reikšmę iš Redis kešo (student)")
         return int(cached_value)
 
-    # 2️⃣ Jei keše nėra, atliekame MongoDB agregaciją
-    print("📊 Atliekame MongoDB užklausą studentui...")
+    # Jei keše nėra, atliekame MongoDB agregaciją
+    print("Atliekame MongoDB užklausą studentui...")
     aggregate_output_cursor = review_collection.aggregate([
         {
             "$match": {
@@ -93,14 +93,14 @@ def get_student_review_count(review_collection, student_id: str):
         {"$count": "num_doc"},
     ])
 
-    # 3️⃣ Nustatome count; jei nėra dokumentų, skaičius = 0
+    # Nustatome count; jei nėra dokumentų, skaičius = 0
     try:
         agg_doc = next(aggregate_output_cursor)
         count = agg_doc['num_doc']
     except StopIteration:
         count = 0
 
-    # 4️⃣ Įrašome į Redis (net jei count = 0)
+    # Įrašome į Redis (net jei count = 0)
     r.set(cache_key, count)
 
     return count
@@ -112,9 +112,9 @@ def invalidate_student_review_cache(student_id: str):
     cache_key = f"student:{student_id}:review_count"
     deleted = r.delete(cache_key)
     if deleted:
-        print(f"🧹 Redis kešas išvalytas studentui {student_id}")
+        print(f"Redis kešas išvalytas studentui {student_id}")
     else:
-        print(f"ℹ️ Kešas studentui {student_id} jau buvo tuščias")
+        print(f"Kešas studentui {student_id} jau buvo tuščias")
 
 
 from bson import ObjectId
@@ -123,8 +123,8 @@ from bson import ObjectId
 def calculate_tutor_rating(review_collection, tutor_id: str):
     """
     Apskaičiuoja vidutinį dėstytojo įvertinimą pagal atsiliepimus.
-    🔹 Naudoja Redis kėšą, kad spartintų pakartotinius skaičiavimus
-    🔹 Įvertinimas apskaičiuojamas tik tiems atsiliepimams, kurie:
+    Naudoja Redis kėšą, kad spartintų pakartotinius skaičiavimus
+    Įvertinimas apskaičiuojamas tik tiems atsiliepimams, kurie:
         - priskirti šiam dėstytojui
         - turi lauką 'rating'
         - nėra atšaukti ('type' != 'REVOKED')
@@ -133,7 +133,7 @@ def calculate_tutor_rating(review_collection, tutor_id: str):
 
     cache_key = f"tutor_rating:{tutor_id}"
 
-    # 1️⃣ Pabandome gauti vertę iš Redis kėšo
+    # Pabandome gauti vertę iš Redis kėšo
     cached = r.get(cache_key)
     if cached:
         try:
@@ -141,7 +141,7 @@ def calculate_tutor_rating(review_collection, tutor_id: str):
         except ValueError:
             pass  # jei kėšas sugadintas, ignoruojame ir skaičiuojame iš naujo
 
-    # 2️⃣ Jei kėše nėra, atliekame MongoDB agregaciją
+    # Jei kėše nėra, atliekame MongoDB agregaciją
     aggregate_output_cursor = review_collection.aggregate([
         {
             "$match": {
@@ -162,12 +162,12 @@ def calculate_tutor_rating(review_collection, tutor_id: str):
         }
     ])
 
-    # 3️⃣ Ištraukiame rezultatą iš kursoriaus
+    # Ištraukiame rezultatą iš kursoriaus
     try:
         agg_doc = next(aggregate_output_cursor)
         rating = agg_doc['average_rating']
 
-        # 4️⃣ Įrašome į Redis be laiko limito
+        # Įrašome į Redis be laiko limito
         if rating is not None:
             r.set(cache_key, rating)
 
@@ -187,19 +187,19 @@ def invalidate_tutor_rating_cache(tutor_id: str):
 def pay_month_tutor(lesson_collection, tutor_id: str):
     """
     Apskaičiuoja mėnesinį atlyginimą dėstytojui pagal pamokas.
-    🔹 Naudoja Redis kešą
-    🔹 Aktyviai invaliduoja duomenis keičiant
-    🔹 Jei pamokų nėra, grąžina 0 ir įrašo į kešą
+    Naudoja Redis kešą
+    Aktyviai invaliduoja duomenis keičiant
+    Jei pamokų nėra, grąžina 0 ir įrašo į kešą
     """
     cache_key = f"tutor:{tutor_id}:monthly_pay"
 
-    # 1️⃣ Tikriname Redis cache
+    # Tikriname Redis cache
     cached_value = r.get(cache_key)
     if cached_value is not None:
-        print("⚡️ Grąžiname reikšmę iš Redis kešo")
+        print("Grąžiname reikšmę iš Redis kešo")
         return float(cached_value)
 
-    # 2️⃣ MongoDB agregacija
+    # MongoDB agregacija
     aggregate_output_cursor = lesson_collection.aggregate([
         {
             "$match": {
@@ -219,12 +219,12 @@ def pay_month_tutor(lesson_collection, tutor_id: str):
         }
     ])
 
-    # 3️⃣ Nustatome mėnesinį atlyginimą
+    # Nustatome mėnesinį atlyginimą
     try:
         agg_doc = next(aggregate_output_cursor)
         monthly_pay_raw = agg_doc['monthly_pay']
 
-        # ✅ jei MongoDB grąžina Decimal128, konvertuojame į float
+        # jei MongoDB grąžina Decimal128, konvertuojame į float
         if isinstance(monthly_pay_raw, Decimal128):
             monthly_pay = float(monthly_pay_raw.to_decimal())
         else:
@@ -233,7 +233,7 @@ def pay_month_tutor(lesson_collection, tutor_id: str):
     except StopIteration:
         monthly_pay = 0
 
-    # 4️⃣ Įrašome į Redis
+    # Įrašome į Redis
     r.set(cache_key, monthly_pay)
     return monthly_pay
 
@@ -247,28 +247,28 @@ def invalidate_tutor_pay_cache(tutor_id: str):
     cache_key = f"tutor:{tutor_id}:monthly_pay"
     deleted = r.delete(cache_key)
     if deleted:
-        print(f"🧹 Redis kešas mėnesiniam atlyginimui išvalytas dėstytojui {tutor_id}")
+        print(f"Redis kešas mėnesiniam atlyginimui išvalytas dėstytojui {tutor_id}")
     else:
-        print(f"ℹ️ Kešas mėnesiniam atlyginimui jau buvo tuščias")
+        print(f"Kešas mėnesiniam atlyginimui jau buvo tuščias")
 
 
 
 def pay_month_student(lesson_collection, student_id: str):
     """
     Apskaičiuoja mėnesinę sumą, kurią studentas sumokėjo už pamokas.
-    🔹 Naudoja Redis kešą
-    🔹 Automatiškai konvertuoja Decimal128 į float
-    🔹 Jei duomenų nėra, grąžina 0 ir įrašo į kešą
+    Naudoja Redis kešą
+    Automatiškai konvertuoja Decimal128 į float
+    Jei duomenų nėra, grąžina 0 ir įrašo į kešą
     """
     cache_key = f"student:{student_id}:monthly_pay"
 
-    # 1️⃣ Tikriname Redis cache
+    # Tikriname Redis cache
     cached_value = r.get(cache_key)
     if cached_value is not None:
-        print("⚡️ Grąžiname reikšmę iš Redis kešo")
+        print("Grąžiname reikšmę iš Redis kešo")
         return float(cached_value)
 
-    # 2️⃣ MongoDB agregacija
+    # MongoDB agregacija
     aggregate_output_cursor = lesson_collection.aggregate([
         {
             "$match": {
@@ -288,12 +288,12 @@ def pay_month_student(lesson_collection, student_id: str):
         }
     ])
 
-    # 3️⃣ Nustatome mėnesinę sumą
+    # Nustatome mėnesinę sumą
     try:
         agg_doc = next(aggregate_output_cursor)
         monthly_pay_raw = agg_doc['monthly_pay']
 
-        # ✅ jei MongoDB grąžina Decimal128, konvertuojame į float
+        # jei MongoDB grąžina Decimal128, konvertuojame į float
         if isinstance(monthly_pay_raw, Decimal128):
             monthly_pay = float(monthly_pay_raw.to_decimal())
         else:
@@ -302,7 +302,7 @@ def pay_month_student(lesson_collection, student_id: str):
     except StopIteration:
         monthly_pay = 0
 
-    # 4️⃣ Įrašome į Redis
+    # Įrašome į Redis
     r.set(cache_key, monthly_pay)
     return monthly_pay
 
@@ -322,9 +322,9 @@ def invalidate_student_pay_cache(student_ids):
         cache_key = f"student:{sid}:monthly_pay"
         deleted = r.delete(cache_key)
         if deleted:
-            print(f"🧹 Redis kešas mėnesinei sumai išvalytas studentui {sid}")
+            print(f"Redis kešas mėnesinei sumai išvalytas studentui {sid}")
         else:
-            print(f"ℹ️ Kešas mėnesinei sumai jau buvo tuščias studentui {sid}")
+            print(f"Kešas mėnesinei sumai jau buvo tuščias studentui {sid}")
 
 if __name__ == "__main__":
     from api.connection import get_db

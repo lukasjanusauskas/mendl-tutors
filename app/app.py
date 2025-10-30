@@ -680,8 +680,8 @@ def add_new_review_tutor(tutor_id):
     """
     Leidžia dėstytojui sukurti atsiliepimą savo mokiniui.
     Pridedant naują atsiliepimą:
-    🔹 įrašome jį į MongoDB
-    🔹 aktyviai išvalome Redis kešą (kad kito kvietimo metu duomenys būtų atnaujinti)
+    įrašome jį į MongoDB
+    aktyviai išvalome Redis kešą (kad kito kvietimo metu duomenys būtų atnaujinti)
     """
 
     # Gauname korepetitoriaus informaciją
@@ -690,24 +690,24 @@ def add_new_review_tutor(tutor_id):
         flash('Korepetitorius nerastas', 'danger')
         return redirect(url_for('index'))
 
-    # 🔹 Gauti mokinius iš duomenų bazės
+    # Gauti mokinius iš duomenų bazės
     students = get_tutor_students(db['tutor'], tutor_id)
 
-    # 🔹 Paruošiame dictionary {student_id: "Vardas Pavardė"}
+    # Paruošiame dictionary {student_id: "Vardas Pavardė"}
     students = {stud['student_id']: f"{stud['first_name']} {stud['last_name']}"
                 for stud in students}
 
-    # 🔹 Jei dėstytojas neturi mokinių
+    # Jei dėstytojas neturi mokinių
     if not students:
         flash('Jūs neturite mokinių', 'warning')
         return redirect("/")
 
-    # 🔹 Apdorojame POST užklausą (forma pateikta)
+    # Apdorojame POST užklausą (forma pateikta)
     if request.method == 'POST':
         student_id = request.form.get('student_id')
         review_text = request.form.get('review_text')
 
-        # 🟩 Išsaugome atsiliepimą MongoDB duomenų bazėje
+        # Išsaugome atsiliepimą MongoDB duomenų bazėje
         create_review(
             db['review'], db['tutor'], db['student'],
             review_info={
@@ -724,7 +724,7 @@ def add_new_review_tutor(tutor_id):
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
         return redirect(url_for('view_tutor', tutor_id=tutor_id))
 
-    # 🔹 GET užklausa – rodome formą
+    # GET užklausa – rodome formą
     return render_template('review_tutor.html', students=students, tutor_id=tutor_id, tutor=tutor)
 
 
@@ -732,7 +732,7 @@ def add_new_review_tutor(tutor_id):
 def add_new_review_student(student_id):
     """
     Leidžia studentui sukurti atsiliepimą savo dėstytojui.
-    🔹 Įrašius atsiliepimą:
+    Įrašius atsiliepimą:
         - įrašome į MongoDB
         - aktyviai išvalome Redis kešą dėstytojui
     """
@@ -743,33 +743,33 @@ def add_new_review_student(student_id):
         flash('Studentas nerastas', 'danger')
         return redirect(url_for('index'))
 
-    # 🔹 Patikriname studento sesiją
+    # Patikriname studento sesiją
     if not check_student_session(session, student_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
 
-    # 🔹 Gauti studento priskirtus dėstytojus
+    # Gauti studento priskirtus dėstytojus
     try:
         tutors = get_students_tutors(db['tutor'], student_id)
     except AssertionError:
         flash('Jūs neturite priskirtų mokytojų', 'warning')
         return redirect("/")
 
-    # 🔹 Sukuriame dictionary {tutor_id: "Vardas Pavardė"}
+    # Sukuriame dictionary {tutor_id: "Vardas Pavardė"}
     tutors = {str(tut['_id']): f"{tut['first_name']} {tut['last_name']}" for tut in tutors}
 
-    # 🔹 Jei nėra priskirtų dėstytojų
+    # Jei nėra priskirtų dėstytojų
     if not tutors:
         flash('Jūs neturite priskirtų mokytojų', 'warning')
         return redirect("/")
 
-    # 🔹 POST užklausa (forma pateikta)
+    # POST užklausa (forma pateikta)
     if request.method == 'POST':
         tutor_id = request.form.get('tutor_id')
         review_text = request.form.get('review_text')
         rating = request.form.get('rating')
 
-        # 🟩 Išsaugome atsiliepimą MongoDB
+        # Išsaugome atsiliepimą MongoDB
         create_review(
             db['review'], db['tutor'], db['student'],
             review_info={
@@ -781,14 +781,14 @@ def add_new_review_student(student_id):
             }
         )
 
-        # 🧹 Aktyviai išvalome Redis kešą – dėstytojo peržiūrų skaičius gali pasikeisti
+        # Aktyviai išvalome Redis kešą – dėstytojo peržiūrų skaičius gali pasikeisti
         invalidate_tutor_review_cache(tutor_id)
         invalidate_tutor_rating_cache(tutor_id)
 
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
         return redirect("/")
 
-    # 🔹 GET užklausa – rodome formą
+    # GET užklausa – rodome formą
     return render_template('review_student.html', tutors=tutors, student_id=student_id, student = student)
 
 
@@ -1103,7 +1103,7 @@ def delete_lesson(lesson_id, tutor_id):
         return redirect(url_for("index"))
 
     try:
-        # 1️⃣ Paimame studentų ID prieš trinant pamoką
+        # Paimame studentų ID prieš trinant pamoką
         lesson = db['lesson'].find_one({"_id": ObjectId(lesson_id)})
         if lesson is None:
             flash("Pamoka nerasta", "warning")
@@ -1111,11 +1111,11 @@ def delete_lesson(lesson_id, tutor_id):
 
         student_ids = [str(s["student_id"]) for s in lesson.get("students", [])]
 
-        # 2️⃣ Triname pamoką
+        # Triname pamoką
         func_delete_lesson(db['lesson'], lesson_id)
         flash("Pavyko panaikinti pamoką", "success")
 
-        # 3️⃣ Išvalome Redis kešus
+        # Išvalome Redis kešus
         invalidate_tutor_pay_cache(tutor_id)
         invalidate_student_pay_cache(student_ids)
 

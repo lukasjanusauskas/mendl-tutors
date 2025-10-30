@@ -33,7 +33,7 @@ def create_new_student(
     try:
         student: dict = {}
 
-        # 1️⃣ Tikriname privalomus laukus
+        # Tikriname privalomus laukus
         required_arguments = [
             'first_name', 
             'last_name', 
@@ -48,21 +48,21 @@ def create_new_student(
                 raise KeyError(f'Truksta {field}')
             student[field] = student_info[field]
 
-        # 2️⃣ Tikriname papildomus laukus
+        # Tikriname papildomus laukus
         optional_arguments = ['student_phone_number', 'student_email', 'parents_email','second_name']
         for field in optional_arguments:
             if field in student_info:
                 student[field] = student_info[field]
 
-        # 3️⃣ Konvertuojame gimimo datą į datetime
+        # Konvertuojame gimimo datą į datetime
         date_of_birth_date = parse_date_of_birth(student_info['date_of_birth'])
         student['date_of_birth'] = date_of_birth_date
 
-        # 4️⃣ Tikriname subjects
+        # Tikriname subjects
         if not isinstance(student['subjects'], list) or len(student['subjects']) == 0:
             raise ValueError("subjects turi buti ne tuscias masyvas")
 
-        # 5️⃣ Tikriname, ar toks studentas jau egzistuoja (first_name + date_of_birth)
+        # Tikriname, ar toks studentas jau egzistuoja (first_name + date_of_birth)
         date_of_birth_start = date_of_birth_date
         date_of_birth_end = date_of_birth_start + timedelta(days=1)
         existing_student = student_collection.find_one({
@@ -78,7 +78,7 @@ def create_new_student(
         student['password_hashed'] = hash_algo.hexdigest()
         del student['password']
 
-        # 6️⃣ Įrašome į DB
+        # Įrašome į DB
         result = student_collection.insert_one(student)
         return result
     finally:

@@ -38,7 +38,7 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
     try:
         tutor: dict = {}
 
-        # 1️⃣ Tikriname privalomus laukus
+        # Tikriname privalomus laukus
         required_arguments = [
             'first_name', 'last_name', 'date_of_birth', 'email', 'password', 'subjects']
         for field in required_arguments:
@@ -46,17 +46,17 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
                 raise KeyError(f'Truksta {field}')
             tutor[field] = tutor_info[field]
 
-        # 2️⃣ Tikriname papildomus laukus
+        # Tikriname papildomus laukus
         optional_parameters = ['phone_number', 'second_name']
         for field in optional_parameters:
             if field in tutor_info:
                 tutor[field] = tutor_info[field]
 
-        # 3️⃣ Konvertuojame gimimo datą į datetime objektą
+        # Konvertuojame gimimo datą į datetime objektą
         date_of_birth_date = parse_date_of_birth(tutor_info['date_of_birth'])
         tutor['date_of_birth'] = date_of_birth_date
 
-        # # 4️⃣ Patikriname, ar toks tutor jau egzistuoja (full_name + date_of_birth)
+        # # Patikriname, ar toks tutor jau egzistuoja (full_name + date_of_birth)
         # # Nemanau, kad reikia sekancio:
         # date_of_birth_start = date_of_birth_date
         # date_of_birth_end = date_of_birth_start + timedelta(days=1)
@@ -72,25 +72,25 @@ def create_new_tutor(tutor_collection, tutor_info: dict) -> InsertOneResult:
             if 'max_class' not in subject:
                 subject['max_class'] = 12
 
-        # 5️⃣ Patikriname unikalų e-mail
+        # Patikriname unikalų e-mail
         if tutor_collection.find_one({"email": tutor['email']}) is not None:
             raise ValueError('Email turi buti unikalus')
 
-        # 6️⃣ Patikriname subjects
+        # Patikriname subjects
         if not isinstance(tutor['subjects'], list) or len(tutor['subjects']) == 0:
             raise ValueError("subjects turi buti ne tuscias masyvas su objektais")
 
-        # 7️⃣ Hashinti slaptažodį
+        # Hashinti slaptažodį
         password_encoded = tutor['password'].encode('utf-8')
         hash_algo = hashlib.sha256()
         hash_algo.update(password_encoded)
         tutor['password_hashed'] = hash_algo.hexdigest()
         del tutor['password']
 
-        # 8️⃣ Papildomi laukai
+        # Papildomi laukai
         tutor['students_subjects'] = []
 
-        # 9️⃣ Įrašome į DB
+        # Įrašome į DB
         result = tutor_collection.insert_one(tutor)
         return result
     finally:
@@ -116,22 +116,22 @@ def assign_student_to_tutor(
         raise LockError("Korepetitorius šiuo metu redaguojamas")
     
     try:
-        # 1️⃣ Paimti studenta is DB
+        # Paimti studenta is DB
         student = student_collection.find_one({"_id": ObjectId(student_id)})
         if not student:
             raise ValueError("Studentas su tokiu ID nerastas")
 
-        # 2️⃣ Patikrinti ar egzistuoja korepetitorius pagal id
+        # Patikrinti ar egzistuoja korepetitorius pagal id
         tutor = tutor_collection.find_one({"_id": ObjectId(tutor_id)})
         if not tutor:
             raise ValueError("Korepetitorius su tokiu ID nerastas")
 
-        # 3️⃣ Patikrinti ar korepetitorius moko tokio subject
+        # Patikrinti ar korepetitorius moko tokio subject
         tutor_subjects = [s.get("subject") for s in tutor.get("subjects", [])]
         if subject not in tutor_subjects:
             raise ValueError("Korepetitorius nemoko sio dalyko")
 
-        # 4️⃣ Patikrinti ar studentas jau priskirtas prie sio subject
+        # Patikrinti ar studentas jau priskirtas prie sio subject
         already_assigned = any(
             s.get("student", {}).get("student_id") == str(student["_id"]) and s.get("subject") == subject
             for s in tutor.get("students_subjects", [])
@@ -139,7 +139,7 @@ def assign_student_to_tutor(
         if already_assigned:
             raise ValueError("Studentas jau priskirtas prie šio dalyko")
 
-        # 5️⃣ Sukurti įrašą studentui su class
+        # Sukurti įrašą studentui su class
         student_entry = {
             "student": {
                 "student_id": str(student["_id"]),
@@ -150,7 +150,7 @@ def assign_student_to_tutor(
             },
         }
 
-        # 6️⃣ Pridėti prie tutor.students_subjects
+        # Pridėti prie tutor.students_subjects
         result = tutor_collection.update_one(
             {"_id": ObjectId(tutor_id)},
             {"$push": {"students_subjects": student_entry}}
@@ -167,7 +167,7 @@ def get_tutor_students(tutor_collection, tutor_id: str) -> list[dict]:
     Grazina visus tutor studentus su vardais, klase ir subjectais.
     Dirba tik su nauju students_subjects formatu ir nenaudoja student kolekcijos.
     """
-    # 1️⃣ Paimame korepetitoriu pagal ID
+    # Paimame korepetitoriu pagal ID
     tutor = tutor_collection.find_one({"_id": ObjectId(tutor_id)})
     if not tutor:
         raise ValueError("Korepetitorius nerastas")
@@ -176,12 +176,12 @@ def get_tutor_students(tutor_collection, tutor_id: str) -> list[dict]:
     results = []
 
     for entry in students_subjects:
-        # 2️⃣ Tikriname, ar entry turi 'student' ir 'student_id'
+        # Tikriname, ar entry turi 'student' ir 'student_id'
         student_info = entry.get("student")
         if not student_info or "student_id" not in student_info:
             continue  # jei ne, praleidziame
 
-        # 3️⃣ Gauname reikiamus duomenis tiesiai is tutor.students_subjects
+        # Gauname reikiamus duomenis tiesiai is tutor.students_subjects
         results.append({
             "student_id": student_info["student_id"],
             "first_name": student_info.get("first_name", ""),
@@ -313,4 +313,3 @@ def remove_student_from_tutor(
 if __name__ == "__main__":
     db = get_db()
     tutor_collection = db['tutor']
-
