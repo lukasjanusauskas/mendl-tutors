@@ -791,6 +791,51 @@ def add_new_review_student(student_id):
     # GET užklausa – rodome formą
     return render_template('review_student.html', tutors=tutors, student_id=student_id, student = student)
 
+@app.route('/student/<student_id>/payment', methods=['GET', 'POST'])
+def payment_student(student_id):
+    """
+    Leidžia studentui sukurti apmokėjimą savo dėstytojui.
+    """
+
+    # Gauname mokinio informaciją
+    student = get_student_by_id(db['student'], student_id)
+    if not student:
+        flash('Studentas nerastas', 'danger')
+        return redirect(url_for('index'))
+
+    # Patikriname studento sesiją
+    if not check_student_session(session, student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
+    # Gauti studento priskirtus dėstytojus
+    try:
+        tutors = get_students_tutors(db['tutor'], student_id)
+    except AssertionError:
+        flash('Jūs neturite priskirtų mokytojų', 'warning')
+        return redirect("/")
+
+    # Sukuriame dictionary {tutor_id: "Vardas Pavardė"}
+    tutors = {str(tut['_id']): f"{tut['first_name']} {tut['last_name']}" for tut in tutors}
+
+    # Jei nėra priskirtų dėstytojų
+    if not tutors:
+        flash('Jūs neturite priskirtų mokytojų', 'warning')
+        return redirect("/")
+
+    # POST užklausa (forma pateikta)
+    if request.method == 'POST':
+        tutor_id = request.form.get('tutor_id')
+        payment_amount = request.form.get('payment_amount')
+
+        # Išsaugome atsiliepimą Cassandra duomenų bazėje
+        # create_payment()
+
+        flash('Mokėjimas sėkmingai atliktas!', 'success')
+        return redirect("/")
+
+    # GET užklausa – rodome formą
+    return render_template('payment_student.html', tutors=tutors, student_id=student_id, student = student)
 
 @app.route('/tutor/<tutor_id>/review_list', methods=['GET'])
 def show_reviews_tutor(tutor_id):
