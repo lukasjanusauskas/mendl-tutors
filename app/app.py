@@ -1297,5 +1297,26 @@ def test_jwt():
             'token_preview': token[:50] + '...'
         }
 
+@app.route("/tutor/<tutor_id>/chat/<student_id>")
+def chat_with_student(tutor_id, student_id):
+    if not check_tutor_session(session, tutor_id=tutor_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
+    try:
+        tutor = get_tutor_by_id(db.tutor, ObjectId(tutor_id))
+        student = db.student.find_one({"_id": ObjectId(student_id)})
+
+        if not tutor or not student:
+            flash("Korepetitorius arba mokinys nerastas.", "danger")
+            return redirect(url_for("view_tutor", tutor_id=tutor_id))
+
+        return render_template("chat.html", tutor=tutor, student=student)
+
+    except Exception as e:
+        flash(f"Klaida: {str(e)}", "danger")
+        return redirect(url_for("view_tutor", tutor_id=tutor_id))
+
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5001)

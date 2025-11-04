@@ -98,41 +98,50 @@
             </div>
         </div>
 
-        <!-- Mokiniai -->
-        <h3 class="mb-4">Mokiniai</h3>
-        {% if students %}
-            <div class="row g-4">
-                {% for student in students %}
-                    <div class="col-sm-6 col-md-4 col-lg-3">
-                        <div class="card h-100 shadow-sm border-0 rounded-3">
-                            <div class="card-body">
-                                <h5 class="card-title mb-2">{{ student.first_name }} {{ student.last_name }}</h5>
-                                <p class="mb-1"><strong>Klasė:</strong> {{ student.student_class or "-" }}</p>
-                                <p class="mb-1"><strong>Dalykas:</strong> {{ student.subject }}</p>
-                                <p class="mb-0"><strong>Tėvų telefonai:</strong> 
-                                    {% if student.parents_phone_numbers %}
-                                        {{ student.parents_phone_numbers | join(", ") }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </p>
-                                
-                                <div class="d-grid">
-                                    <form method="POST" action="{{ url_for('remove_student_from_tutor_route', tutor_id=tutor._id, student_id=student.student_id) }}" 
-                                          onsubmit="return confirm('Ar tikrai norite pašalinti {{ student.first_name }} {{ student.last_name }} iš savo mokinių sąrašo?')">
-                                        <button type="submit" class="btn btn-outline-danger btn-sm">
-                                            <i class="bi bi-person-dash"></i> Pašalinti mokinį
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
+       <!-- Mokiniai -->
+<h3 class="mb-4">Mokiniai</h3>
+{% if students %}
+    <div class="row g-4">
+        {% for student in students %}
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 shadow-sm border-0 rounded-3">
+                    <div class="card-body">
+                        <h5 class="card-title mb-2">{{ student.first_name }} {{ student.last_name }}</h5>
+                        <p class="mb-1"><strong>Klasė:</strong> {{ student.student_class or "-" }}</p>
+                        <p class="mb-1"><strong>Dalykas:</strong> {{ student.subject }}</p>
+                        <p class="mb-0"><strong>Tėvų telefonai:</strong>
+                            {% if student.parents_phone_numbers %}
+                                {{ student.parents_phone_numbers | join(", ") }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </p>
+
+                        <div class="d-grid gap-2 mt-3">
+                            <!-- Naujas mygtukas rašyti žinutę -->
+                            <a href="{{ url_for('chat_with_student', tutor_id=tutor._id, student_id=student.student_id) }}"
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-chat-dots"></i> Rašyti žinutę
+                            </a>
+
+                            <!-- Esamas pašalinimo mygtukas -->
+                            <form method="POST"
+                                  action="{{ url_for('remove_student_from_tutor_route', tutor_id=tutor._id, student_id=student.student_id) }}"
+                                  onsubmit="return confirm('Ar tikrai norite pašalinti {{ student.first_name }} {{ student.last_name }} iš savo mokinių sąrašo?')">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-person-dash"></i> Pašalinti mokinį
+                                </button>
+                            </form>
                         </div>
                     </div>
-                {% endfor %}
+                </div>
             </div>
-        {% else %}
-            <p class="text-muted">Mokinių nėra.</p>
-        {% endif %}
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-muted">Mokinių nėra.</p>
+{% endif %}
+
 
     {% else %}
         <p class="text-muted">Korepetitorius nerastas.</p>
