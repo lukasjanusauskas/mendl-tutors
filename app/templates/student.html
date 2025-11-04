@@ -2,7 +2,6 @@
 
 {% if session.session_type == 'admin' %}
 {% set back_url = url_for('students') %}
-
 {% elif session.session_type == 'student' %}
 {% set back_url = url_for('index') %}
 {% endif %}
@@ -48,10 +47,9 @@
                         -
                     {% endif %}
                 </div>
-                <div class="col-md-4"><strong>Mokėti šį mėnesį:</strong> {{ student.pay or '-'}} </div>
+                <div class="col-md-4"><strong>Mokėti šį mėnesį:</strong> {{ student.pay or '-'}}</div>
             </div>
 
-            <!-- ✅ Naujas blokas: Atsiliepimų skaičius -->
             <div class="row mb-3">
                 <div class="col-md-4">
                     <strong>Atsiliepimų skaičius:</strong>
@@ -60,22 +58,22 @@
             </div>
 
             <div class="d-flex flex-wrap gap-3 mt-4">
-                <a href="{{ url_for('show_reviews_student', student_id=student._id) }}" 
+                <a href="{{ url_for('show_reviews_student', student_id=student._id|string) }}"
                    class="btn btn-outline-primary flex-grow-1">
                     <i class="bi bi-eye"></i> Peržiūrėti atsiliepimus
                 </a>
-                <a href="{{ url_for('add_new_review_student', student_id=student._id) }}" 
+                <a href="{{ url_for('add_new_review_student', student_id=student._id|string) }}"
                    class="btn btn-outline-success flex-grow-1">
                     <i class="bi bi-pencil-square"></i> Palikti atsiliepimą
                 </a>
-                <a href="{{ url_for('payment_student', student_id=student._id) }}" 
+                <a href="{{ url_for('payment_student', student_id=student._id|string) }}"
                    class="btn btn-outline-success flex-grow-1">
                     <i class="bi bi-credit-card"></i> Atlikti mokėjimą
                 </a>
             </div>
         </div>
 
-        <!-- Korepetitoriai -->
+        <!-- Korepetitoriai su chat mygtukais -->
         <h3 class="mb-4 fw-bold text-success">Korepetitoriai</h3>
         {% if tutors %}
             <div class="row g-4 mb-5">
@@ -86,6 +84,11 @@
                                 <h5 class="card-title mb-2">{{ tutor.first_name }} {{ tutor.last_name }}</h5>
                                 <p class="mb-1 text-muted"><i class="bi bi-envelope"></i> {{ tutor.email }}</p>
                                 <p class="mb-0"><strong>Dalykas:</strong> {{ tutor.subject }}</p>
+                                <!-- Chat mygtukas su korepetitoriumi -->
+                                <a href="{{ url_for('chat_with_tutor', student_id=student._id, tutor_id=tutor._id) }}"
+                                   class="btn btn-outline-primary btn-sm mt-2">
+                                    <i class="bi bi-chat-dots"></i> Rašyti žinutę
+                                </a>
                             </div>
                         </div>
                     </div>

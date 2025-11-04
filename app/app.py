@@ -253,6 +253,7 @@ def view_student(student_id):
 
         for t in tutors_cursor:
             tutors.append({
+                "_id": str(t.get("_id")),
                 "first_name": t.get("first_name", ""),
                 "last_name": t.get("last_name", ""),
                 "email": t.get("email", ""),
@@ -1316,6 +1317,33 @@ def chat_with_student(tutor_id, student_id):
     except Exception as e:
         flash(f"Klaida: {str(e)}", "danger")
         return redirect(url_for("view_tutor", tutor_id=tutor_id))
+
+
+@app.route("/student/<student_id>/chat/<tutor_id>")
+def chat_with_tutor(student_id, tutor_id):
+    try:
+        # Gauti studentą pagal ID
+        student = get_student_by_id(db.student, student_id)
+        # Gauti korepetitorių pagal ID
+        tutor = get_tutor_by_id(db.tutor, tutor_id)
+
+        # Patikriname, ar egzistuoja studentas ir korepetitorius
+        if not student or not tutor:
+            flash("Studentas arba korepetitorius nerastas.", "danger")
+            return redirect(url_for("view_student", student_id=student_id))
+
+        # Čia gali perduoti istoriją / pranešimus, jei turi duomenų bazėje
+        messages = []  # Pavyzdžiui, čia galėsi gauti pranešimus tarp studento ir korepetitoriaus
+
+        return render_template(
+            "chat_detail.html",
+            student=student,
+            tutor=tutor,
+            messages=messages
+        )
+    except Exception as e:
+        flash(f"Klaida: {str(e)}", "danger")
+        return redirect(url_for("view_student", student_id=student_id))
 
 
 if __name__ == '__main__':
