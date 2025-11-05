@@ -73,12 +73,19 @@ from api.lesson import (
 from redis_api.redis_client import get_redis
 from redis.exceptions import LockError
 from cassandra_db.cassandra_client import get_cassandra_session
+from flask_socketio import SocketIO, emit, join_room
+from cassandra.query import SimpleStatement
+from datetime import datetime
+from uuid import uuid1
+from cassandra.util import uuid_from_time
+
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
 client = MongoClient(os.getenv('MONGO_URI'))
 db = client['mendel-tutor']
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 r = get_redis()
 
@@ -1299,53 +1306,102 @@ def test_jwt():
             'token_preview': token[:50] + '...'
         }
 
+def get_chat_context(user_role, user_id, other_id):
+    """
+    Универсальная функция для подготовки контекста чата.
+    user_role: "tutor" или "student" — роль текущего пользователя
+    user_id: ID текущего пользователя
+    other_id: ID второго участника
+    """
+    if user_role == "tutor":
+        tutor = get_tutor_by_id(db.tutor, user_id)
+        student = get_student_by_id(db.student, other_id)
+    else:
+        student = get_student_by_id(db.student, user_id)
+        tutor = get_tutor_by_id(db.tutor, other_id)
+
+    if not tutor or not student:
+        return None, None, None
+
+    return tutor, student, user_role
+
+
 @app.route("/tutor/<tutor_id>/chat/<student_id>")
 def chat_with_student(tutor_id, student_id):
     if not check_tutor_session(session, tutor_id=tutor_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
 
-    try:
-        tutor = get_tutor_by_id(db.tutor, ObjectId(tutor_id))
-        student = db.student.find_one({"_id": ObjectId(student_id)})
-
-        if not tutor or not student:
-            flash("Korepetitorius arba mokinys nerastas.", "danger")
-            return redirect(url_for("view_tutor", tutor_id=tutor_id))
-
-        return render_template("chat.html", tutor=tutor, student=student)
-
-    except Exception as e:
-        flash(f"Klaida: {str(e)}", "danger")
+    tutor, student, role = get_chat_context("tutor", tutor_id, student_id)
+    if not tutor or not student:
+        flash("Korepetitorius arba mokinys nerastas.", "danger")
         return redirect(url_for("view_tutor", tutor_id=tutor_id))
+
+    return render_template("chat.html", tutor=tutor, student=student, sender_role=role)
 
 
 @app.route("/student/<student_id>/chat/<tutor_id>")
 def chat_with_tutor(student_id, tutor_id):
-    try:
-        # Gauti studentą pagal ID
-        student = get_student_by_id(db.student, student_id)
-        # Gauti korepetitorių pagal ID
-        tutor = get_tutor_by_id(db.tutor, tutor_id)
+    if not check_student_session(session, student_id=student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
 
-        # Patikriname, ar egzistuoja studentas ir korepetitorius
-        if not student or not tutor:
-            flash("Studentas arba korepetitorius nerastas.", "danger")
-            return redirect(url_for("view_student", student_id=student_id))
-
-        # Čia gali perduoti istoriją / pranešimus, jei turi duomenų bazėje
-        messages = []  # Pavyzdžiui, čia galėsi gauti pranešimus tarp studento ir korepetitoriaus
-
-        return render_template(
-            "chat_detail.html",
-            student=student,
-            tutor=tutor,
-            messages=messages
-        )
-    except Exception as e:
-        flash(f"Klaida: {str(e)}", "danger")
+    tutor, student, role = get_chat_context("student", student_id, tutor_id)
+    if not tutor or not student:
+        flash("Studentas arba korepetitorius nerastas.", "danger")
         return redirect(url_for("view_student", student_id=student_id))
 
+    return render_template("chat.html", tutor=tutor, student=student, sender_role=role)
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+@socketio.on("join")
+def handle_join(data):
+    tutor_id = data["tutor_id"]
+    student_id = data["student_id"]
+    room = f"{tutor_id}_{student_id}"
+    join_room(room)
+
+
+    query = f"""
+        SELECT sender_role, message_text, sent_at 
+        FROM messages.by_pair 
+        WHERE tutor_id = %s AND student_id = %s 
+        LIMIT 50
+    """
+    rows = session_cassandra.execute(query, (tutor_id, student_id))
+    messages = [
+        {
+            "sender": row.sender_role,
+            "message": row.message_text,
+            "timestamp": row.sent_at.isoformat() if row.sent_at else ""
+        }
+        for row in rows
+    ]
+    emit("load_messages", messages)
+
+
+@socketio.on("send_message")
+def handle_send_message(data):
+    tutor_id = data["tutor_id"]
+    student_id = data["student_id"]
+    sender = data["sender"]
+    message_text = data["message"]
+
+
+    message_id = uuid1()  # TIMEUUID
+    sent_at = datetime.utcnow()
+    query = """
+        INSERT INTO messages.by_pair (tutor_id, student_id, message_id, sender_role, message_text, sent_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    session_cassandra.execute(query, (tutor_id, student_id, message_id, sender, message_text, sent_at))
+
+
+    room = f"{tutor_id}_{student_id}"
+    emit("receive_message", {
+        "sender": sender,
+        "message": message_text,
+        "timestamp": sent_at.isoformat()
+    }, room=room)
+
+if __name__ == "__main__":
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
