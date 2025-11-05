@@ -107,8 +107,7 @@ function appendMessage(sender, message, timestamp=null) {
     const utcDate = new Date(timestamp + "Z"); // "Z" nurodo UTC
     time.textContent = utcDate.toLocaleTimeString('lt-LT', {
         hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
+        minute: '2-digit'
     });
 
     bubble.appendChild(time);
