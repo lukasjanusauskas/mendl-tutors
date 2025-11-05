@@ -1,10 +1,10 @@
 from flask import (
-    Flask, 
-    render_template, 
-    request, 
-    redirect, 
-    url_for, 
-    flash, 
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
     session
 )
 from pymongo import MongoClient
@@ -101,13 +101,15 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXPIRATION_HOURS = 1
 
 session_cassandra = get_cassandra_session()
+
+
 @app.route("/")
 def index():
     if 'session_type' in session:
         session_type = session['session_type']
     else:
         session_type = None
-    
+
     return render_template("index.html", session_type=session_type)
 
 
@@ -122,7 +124,7 @@ def check_session_type():
     # Check JWT token instead of session
     if 'jwt_token' not in session:
         return redirect(url_for('login'))
-    
+
     payload = verify_jwt_token(session['jwt_token'])
     if not payload:
         session.clear()  # Clear invalid session
@@ -153,38 +155,39 @@ def check_student_session(session, student_id: str):
     # Check JWT token
     if 'jwt_token' not in session:
         return False
-        
+
     payload = verify_jwt_token(session['jwt_token'])
     if not payload:
         return False
-        
+
     # Admin can access everything
     if payload.get('user_type') == ADMIN_TYPE:
         return True
-        
+
     # Student can only access their own data
     if payload.get('user_type') == STUDENT_TYPE and payload.get('user_id') == str(student_id):
         return True
-        
+
     return False
+
 
 def check_tutor_session(session, tutor_id: str):
     # Check JWT token
     if 'jwt_token' not in session:
         return False
-        
+
     payload = verify_jwt_token(session['jwt_token'])
     if not payload:
         return False
-        
+
     # Admin can access everything
     if payload.get('user_type') == ADMIN_TYPE:
         return True
-        
+
     # Tutor can only access their own data
     if payload.get('user_type') == TUTOR_TYPE and payload.get('user_id') == str(tutor_id):
         return True
-        
+
     return False
 
 
@@ -198,7 +201,6 @@ def students():
         last_name = request.args.get("last_name")
         student_collection = db["student"]
 
-
         if first_name and last_name:
             students_list = get_students_by_name(student_collection, first_name, last_name)
         else:
@@ -206,7 +208,6 @@ def students():
             students_list = list(
                 student_collection.find({}).sort([("first_name", 1), ("last_name", 1)])
             )
-
 
         if first_name is None:
             return render_template(
@@ -229,7 +230,6 @@ def students():
 
 @app.route("/student/<student_id>")
 def view_student(student_id):
-
     if not check_student_session(session, student_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
@@ -240,8 +240,8 @@ def view_student(student_id):
 
         tutors_cursor = db.tutor.find({"students_subjects.student.student_id": student_id})
 
-        review_count = get_student_review_count(db['review'], 
-                                              student_id=student['_id'])
+        review_count = get_student_review_count(db['review'],
+                                                student_id=student['_id'])
         if review_count:
             student['review_count'] = review_count
 
@@ -253,7 +253,7 @@ def view_student(student_id):
         try:
             lessons = list_lessons_student_week(
                 db["lesson"],
-                db["student"], 
+                db["student"],
                 str(student['_id'])
             )
         except Exception as lesson_e:
@@ -300,7 +300,7 @@ def add_student():
                 create_new_student(db.student, data)
                 flash("Mokinys sėkmingai pridėtas!", "success")
                 return redirect(url_for("students"))
-            
+
             except LockError:
                 flash("Mokinių sąrašas šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
                 return redirect(url_for("students"))
@@ -321,12 +321,12 @@ def delete_student_ui(student_id):
                 flash("Mokinys sėkmingai ištrintas!", "success")
             else:
                 flash("Mokinys nerastas.", "warning")
-                
+
         except LockError:
             flash("Šiuo metu mokinys redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
 
     except Exception as e:
-            flash(str(e), "danger")
+        flash(str(e), "danger")
 
     return redirect(url_for("students"))
 
@@ -348,26 +348,28 @@ def sign_up_student():
                     raise ValueError("Klasė turi būti nuo 1 iki 12")
             except (ValueError, TypeError):
                 raise ValueError("Klasė turi būti skaičius nuo 1 iki 12")
-            
+
             # Validate parents phone numbers
             parents_phones_raw = request.form.get('parents_phone_numbers', '')
             if not parents_phones_raw.strip():
                 raise ValueError("Būtina nurodyti bent vieną tėvų telefono numerį")
-            
+
             parents_phones_list = [p.strip() for p in parents_phones_raw.split(',') if p.strip()]
             if not parents_phones_list:
                 raise ValueError("Būtina nurodyti bent vieną tėvų telefono numerį")
-            
+
             # Validate phone number format
             phone_pattern = r'^\+?\d{7,15}$'
             for i, phone in enumerate(parents_phones_list):
                 if not re.match(phone_pattern, phone):
-                    raise ValueError(f"Neteisingas telefono numerio formatas: '{phone}'. Telefono numeris turi būti 7-15 skaitmenų, gali prasidėti '+' ženklu")
-            
+                    raise ValueError(
+                        f"Neteisingas telefono numerio formatas: '{phone}'. Telefono numeris turi būti 7-15 skaitmenų, gali prasidėti '+' ženklu")
+
             # Validate student phone number if provided
             student_phone = request.form.get('phone_number', '').strip()
             if student_phone and not re.match(phone_pattern, student_phone):
-                raise ValueError(f"Neteisingas mokinio telefono numerio formatas: '{student_phone}'. Telefono numeris turi būti 7-15 skaitmenų, gali prasidėti '+' ženklu")
+                raise ValueError(
+                    f"Neteisingas mokinio telefono numerio formatas: '{student_phone}'. Telefono numeris turi būti 7-15 skaitmenų, gali prasidėti '+' ženklu")
 
             # Paruošiame duomenis API funkcijai
             student_info = {
@@ -411,7 +413,7 @@ def sign_up_student():
 
         except Exception as e:
             return render_template('sign_up_student.html', error=str(e))
-    
+
     # GET request
     return render_template('sign_up_student.html')
 
@@ -474,7 +476,7 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        
+
         try:
             # Check if user is a tutor
             tutor = db.tutor.find_one({"email": email})
@@ -483,12 +485,13 @@ def login():
                 hash_algo = hashlib.sha256()
                 hash_algo.update(password_encoded)
                 hashed_password = hash_algo.hexdigest()
-                
+
                 if tutor.get('password_hashed') == hashed_password:
-                    token = generate_jwt_token(str(tutor['_id']), TUTOR_TYPE, f"{tutor['first_name']} {tutor['last_name']}")
-                    
+                    token = generate_jwt_token(str(tutor['_id']), TUTOR_TYPE,
+                                               f"{tutor['first_name']} {tutor['last_name']}")
+
                     redis_key = f"jwt:user:{tutor['_id']}"
-                    
+
                     # Store tokens in JSON format
                     token_data = {
                         'token': token,
@@ -496,7 +499,7 @@ def login():
                         'user_id': str(tutor['_id']),
                         'user_name': f"{tutor['first_name']} {tutor['last_name']}"
                     }
-                    
+
                     # Store in Redis
                     r.setex(redis_key, JWT_EXPIRATION_HOURS * 3600, json.dumps(token_data))
 
@@ -508,21 +511,23 @@ def login():
 
                     flash('Sėkmingai prisijungėte!', 'success')
                     return redirect(url_for('view_tutor', tutor_id=str(tutor['_id'])))
- 
+
             student = db.student.find_one({"student_email": email})
             if student:
                 password_encoded = password.encode('utf-8')
                 hash_algo = hashlib.sha256()
                 hash_algo.update(password_encoded)
                 hashed_password = hash_algo.hexdigest()
-                
+
                 if student.get('password_hashed') == hashed_password:
-                    token = generate_jwt_token(str(student['_id']), STUDENT_TYPE, f"{student['first_name']} {student['last_name']}")
-                    
+                    token = generate_jwt_token(str(student['_id']), STUDENT_TYPE,
+                                               f"{student['first_name']} {student['last_name']}")
+
                     redis_key = f"jwt:user:{student['_id']}"
-                    token_data = {'token': token, 'user_type': STUDENT_TYPE, 'user_id': str(student['_id']), 'user_name': f"{student['first_name']} {student['last_name']}"}
+                    token_data = {'token': token, 'user_type': STUDENT_TYPE, 'user_id': str(student['_id']),
+                                  'user_name': f"{student['first_name']} {student['last_name']}"}
                     r.setex(redis_key, JWT_EXPIRATION_HOURS * 3600, json.dumps(token_data))
-                    
+
                     session['jwt_token'] = token
                     session['user_id'] = str(student['_id'])
                     session['session_type'] = STUDENT_TYPE
@@ -534,33 +539,32 @@ def login():
             # Admin
             if email == ADMIN_NAME and password == ADMIN_PASS:
                 token = generate_jwt_token('admin', ADMIN_TYPE, 'Administrator')
-                
+
                 redis_key = "jwt:user:admin"
                 token_data = {'token': token, 'user_type': ADMIN_TYPE, 'user_id': 'admin', 'user_name': 'Administrator'}
                 r.setex(redis_key, JWT_EXPIRATION_HOURS * 3600, json.dumps(token_data))
-                
+
                 session['jwt_token'] = token
                 session['session_type'] = ADMIN_TYPE
                 session['logged_in'] = True
 
                 flash('Sėkmingai prisijungėte!', 'success')
                 return redirect(url_for('index'))
-            
+
             return render_template('login.html', error='Neteisingas el. paštas arba slaptažodis')
-            
+
         except Exception as e:
             return render_template('login.html', error=str(e))
-    
+
     return render_template('login.html')
 
 
 @app.route('/logout')
 def logout():
-    
     if 'user_id' in session:
         redis_key = f"jwt:user:{session['user_id']}"
         r.delete(redis_key)
-    
+
     session.clear()
     flash('Sėkmingai atsijungėte!', 'info')
     return redirect(url_for('login'))
@@ -595,7 +599,6 @@ def tutors():
 
 @app.route("/tutor/<tutor_id>/view")
 def view_tutor(tutor_id):
-
     if not check_tutor_session(session, tutor_id=tutor_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
@@ -635,7 +638,7 @@ def remove_tutor(tutor_id):
                 flash("Korepetitorius sėkmingai ištrintas!", "success")
             else:
                 flash("Korepetitorius nerastas.", "warning")
-                
+
         except LockError:
             flash("Šiuo metu korepetitorius redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
     except Exception as e:
@@ -727,7 +730,6 @@ def add_new_review_tutor(tutor_id):
             }
         )
 
-
         invalidate_student_review_cache(student_id)
 
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
@@ -798,7 +800,8 @@ def add_new_review_student(student_id):
         return redirect("/")
 
     # GET užklausa – rodome formą
-    return render_template('review_student.html', tutors=tutors, student_id=student_id, student = student)
+    return render_template('review_student.html', tutors=tutors, student_id=student_id, student=student)
+
 
 @app.route('/student/<student_id>/payment', methods=['GET', 'POST'])
 def payment_student(student_id):
@@ -844,11 +847,11 @@ def payment_student(student_id):
         return redirect("/")
 
     # GET užklausa – rodome formą
-    return render_template('payment_student.html', tutors=tutors, student_id=student_id, student = student)
+    return render_template('payment_student.html', tutors=tutors, student_id=student_id, student=student)
+
 
 @app.route('/tutor/<tutor_id>/review_list', methods=['GET'])
 def show_reviews_tutor(tutor_id):
-
     if not check_tutor_session(session, tutor_id=tutor_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
@@ -859,12 +862,12 @@ def show_reviews_tutor(tutor_id):
     if not tutor:
         flash('Korepetitorius nerastas', 'danger')
         return redirect(url_for('index'))
-    
+
     return render_template('review_view.html',
                            tutor_id=tutor_id,
                            written_reviews=written_reviews,
                            recieved_reviews=recieved_reviews,
-                           tutor = tutor)
+                           tutor=tutor)
 
 
 @app.route("/tutor/<tutor_id>/add_student", methods=["GET", "POST"])
@@ -893,18 +896,18 @@ def add_student_to_tutor(tutor_id):
                         return redirect(url_for("view_tutor", tutor_id=tutor_id))
                     else:
                         flash("Nepavyko priskirti mokinio.", "danger")
-                        
+
                 except LockError:
                     flash('Korepetitorius šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.', 'warning')
                     return redirect(url_for('view_tutor', tutor_id=tutor_id))
-                    
+
             except Exception as e:
                 flash(f"Klaida: {str(e)}", "danger")
 
         students = get_all_students(db.student)
-        return render_template("add_student_to_tutor.html", 
-                             tutor=tutor, 
-                             students=students)
+        return render_template("add_student_to_tutor.html",
+                               tutor=tutor,
+                               students=students)
 
     except Exception as e:
         flash(f"Klaida: {str(e)}", "danger")
@@ -925,19 +928,18 @@ def remove_student_from_tutor_route(tutor_id, student_id):
                 flash("Mokinys sėkmingai pašalintas!", "success")
             else:
                 flash("Nepavyko pašalinti mokinio.", "danger")
-                
+
         except LockError:
             flash('Korepetitorius šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.', 'warning')
-            
+
     except Exception as e:
         flash(f"Nepavyko pašalinti mokinio: {str(e)}", "danger")
-    
+
     return redirect(url_for("view_tutor", tutor_id=tutor_id))
 
 
 @app.route('/student/<student_id>/review_list', methods=['GET'])
 def show_reviews_student(student_id):
-
     if not check_student_session(session, student_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
@@ -953,8 +955,7 @@ def show_reviews_student(student_id):
                            student_id=student_id,
                            written_reviews=written_reviews,
                            recieved_reviews=recieved_reviews,
-                           student = student)
-    
+                           student=student)
 
 
 @app.route('/tutor/revoke_review/<tutor_id>/<review_id>', methods=['GET'])
@@ -980,12 +981,11 @@ def tutor_revoke_review(tutor_id, review_id):
 
     flash('Sėkmingai atsiimtas atsiliepimas', 'success')
 
-    return redirect(url_for('show_reviews_tutor', tutor_id=tutor_id, tutor = tutor))
+    return redirect(url_for('show_reviews_tutor', tutor_id=tutor_id, tutor=tutor))
 
 
 @app.route('/student/revoke_review/<student_id>/<review_id>', methods=['GET'])
 def student_revoke_review(student_id, review_id):
-
     if not check_student_session(session, student_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
@@ -1017,7 +1017,7 @@ def revoke_review_dialog_tutor(review_id, tutor_id):
 
     except ValueError:
         flash('Could not find review', 'danger')
-        redirect( url_for('show_reviews_tutor', tutor_id=tutor_id) )
+        redirect(url_for('show_reviews_tutor', tutor_id=tutor_id))
 
     return render_template('revoke_review.html',
                            review=review,
@@ -1041,7 +1041,7 @@ def revoke_review_dialog_student(review_id, student_id):
 
     except ValueError:
         flash('Could not find review', 'danger')
-        redirect( url_for('show_reviews_student', tutor_id=student_id) )
+        redirect(url_for('show_reviews_student', tutor_id=student_id))
 
     return render_template('revoke_review_student.html',
                            review=review,
@@ -1072,7 +1072,7 @@ def manage_lessons(tutor_id):
         'lesson_main.html',
         tutor_id=tutor_id,
         lessons=list_lessons,
-        tutor = tutor
+        tutor=tutor
     )
 
 
@@ -1097,7 +1097,7 @@ def change_lesson_time(lesson_id, tutor_id):
     except Exception as e:
         flash(f'Nepavyko perkelti pamokos {e}', 'warning')
 
-    return redirect( url_for('manage_lessons', tutor_id=tutor_id) )
+    return redirect(url_for('manage_lessons', tutor_id=tutor_id))
 
 
 @app.route("/tutor/create_lesson/<tutor_id>", methods=["GET", "POST"])
@@ -1105,7 +1105,7 @@ def create_new_lesson(tutor_id):
     if not check_tutor_session(session, tutor_id=tutor_id):
         flash("Nesate autorizuotas šiam puslapiui", "warning")
         return redirect(url_for("index"))
-    
+
     tutor = get_tutor_by_id(db['tutor'], tutor_id)
     if not tutor:
         flash('Korepetitorius nerastas', 'danger')
@@ -1135,20 +1135,20 @@ def create_new_lesson(tutor_id):
         except Exception as e:
             traceback.print_exc()
             flash(f"Nepavyko sukurti pamokos: {e}", "alert")
-            return redirect( url_for('create_new_lesson', tutor_id=tutor_id, tutor = tutor) )
+            return redirect(url_for('create_new_lesson', tutor_id=tutor_id, tutor=tutor))
 
         flash(f"Pavyko sukurti pamoką", "success")
         invalidate_tutor_pay_cache(tutor_id)
         invalidate_student_pay_cache(student_ids)
-        return redirect( url_for('manage_lessons', tutor_id=tutor_id, tutor = tutor) )
+        return redirect(url_for('manage_lessons', tutor_id=tutor_id, tutor=tutor))
 
     else:
         # Get list of students
         students = get_tutor_students(db['tutor'], tutor_id=tutor_id)
 
         # Show template
-        return render_template('create_lesson.html', tutor_id=tutor_id, students=students, tutor = tutor)
-    
+        return render_template('create_lesson.html', tutor_id=tutor_id, students=students, tutor=tutor)
+
 
 @app.route("/tutor/delete_lesson/<lesson_id>/<tutor_id>", methods=["GET", "POST"])
 def delete_lesson(lesson_id, tutor_id):
@@ -1194,7 +1194,8 @@ def edit_lesson(lesson_id, tutor_id):
         return redirect(url_for("index"))
 
     lesson = db['lesson'].find_one({'_id': ObjectId(lesson_id)})
-    return render_template("edit_lesson.html", lesson=lesson, tutor_id=tutor_id, tutor = tutor)
+    return render_template("edit_lesson.html", lesson=lesson, tutor_id=tutor_id, tutor=tutor)
+
 
 def generate_jwt_token(user_id, user_type, user_name):
     """Generate a JWT token for authenticated user"""
@@ -1205,37 +1206,38 @@ def generate_jwt_token(user_id, user_type, user_name):
         'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
         'iat': datetime.utcnow()  # issued at
     }
-    
+
     token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     return token
+
 
 def verify_jwt_token(token):
     """Verify and decode a JWT token, checking Redis storage"""
     try:
         # First, decode the JWT to get the payload
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        
+
         # Get user_id from payload
         user_id = payload.get('user_id')
-        
+
         # Check if token exists in Redis
         redis_key = f"jwt:user:{user_id}"
         stored_data = r.get(redis_key)
-        
+
         if not stored_data:
             # Token not found in Redis (expired or logged out)
             return None
-        
+
         # Parse stored data
         token_data = json.loads(stored_data)
-        
+
         # Verify that the token matches what's stored
         if token_data.get('token') != token:
             # Token mismatch - possible security issue
             return None
-        
+
         return payload
-        
+
     except jwt.ExpiredSignatureError:
         return None  # Token has expired
     except jwt.InvalidTokenError:
@@ -1244,12 +1246,14 @@ def verify_jwt_token(token):
         print(f"Error verifying token: {e}")
         return None
 
+
 def jwt_required(f):
     """Decorator to require JWT authentication"""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         token = None
-        
+
         # Check for token in Authorization header
         auth_header = request.headers.get('Authorization')
         if auth_header:
@@ -1257,26 +1261,27 @@ def jwt_required(f):
                 token = auth_header.split(" ")[1]  # Format: "Bearer <token>"
             except IndexError:
                 return {'error': 'Invalid authorization header format'}, 401
-        
+
         # Check for token in session (for web interface)
         if not token and 'jwt_token' in session:
             token = session['jwt_token']
-        
+
         if not token:
             flash('Token is missing', 'warning')
             return redirect(url_for('login'))
-        
+
         payload = verify_jwt_token(token)
         if payload is None:
             flash('Token is invalid or expired', 'warning')
             session.pop('jwt_token', None)  # Remove invalid token
             return redirect(url_for('login'))
-        
+
         # Add user info to request context
         request.current_user = payload
         return f(*args, **kwargs)
-    
+
     return decorated_function
+
 
 @app.route('/test-jwt')
 def test_jwt():
@@ -1287,10 +1292,10 @@ def test_jwt():
             'session_keys': list(session.keys()),
             'logged_in': session.get('logged_in', False)
         }
-    
+
     token = session['jwt_token']
     payload = verify_jwt_token(token)
-    
+
     if payload:
         return {
             'status': 'JWT working correctly',
@@ -1305,6 +1310,7 @@ def test_jwt():
             'error': 'JWT token is invalid or expired',
             'token_preview': token[:50] + '...'
         }
+
 
 def get_chat_context(user_role, user_id, other_id):
     """
@@ -1353,13 +1359,13 @@ def chat_with_tutor(student_id, tutor_id):
 
     return render_template("chat.html", tutor=tutor, student=student, sender_role=role)
 
+
 @socketio.on("join")
 def handle_join(data):
     tutor_id = data["tutor_id"]
     student_id = data["student_id"]
     room = f"{tutor_id}_{student_id}"
     join_room(room)
-
 
     query = f"""
         SELECT sender_role, message_text, sent_at 
@@ -1386,15 +1392,13 @@ def handle_send_message(data):
     sender = data["sender"]
     message_text = data["message"]
 
-
     message_id = uuid1()  # TIMEUUID
     sent_at = datetime.utcnow()
     query = """
-        INSERT INTO messages.by_pair (tutor_id, student_id, message_id, sender_role, message_text, sent_at)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """
+            INSERT INTO messages.by_pair (tutor_id, student_id, message_id, sender_role, message_text, sent_at)
+            VALUES (%s, %s, %s, %s, %s, %s) \
+            """
     session_cassandra.execute(query, (tutor_id, student_id, message_id, sender, message_text, sent_at))
-
 
     room = f"{tutor_id}_{student_id}"
     emit("receive_message", {
@@ -1403,5 +1407,6 @@ def handle_send_message(data):
         "timestamp": sent_at.isoformat()
     }, room=room)
 
+
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5001, debug=True, allow_unsafe_werkzeug=True)
