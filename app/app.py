@@ -72,7 +72,7 @@ from api.lesson import (
 
 from redis_api.redis_client import get_redis
 from redis.exceptions import LockError
-
+from cassandra_db.cassandra_client import get_cassandra_session
 load_dotenv()
 
 app = Flask(__name__)
@@ -93,6 +93,7 @@ JWT_SECRET_KEY = 'labai-slaptas-raktas-1'
 JWT_ALGORITHM = 'HS256'
 JWT_EXPIRATION_HOURS = 1
 
+session_cassandra = get_cassandra_session()
 @app.route("/")
 def index():
     if 'session_type' in session:
