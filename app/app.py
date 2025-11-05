@@ -1313,12 +1313,7 @@ def test_jwt():
 
 
 def get_chat_context(user_role, user_id, other_id):
-    """
-    Универсальная функция для подготовки контекста чата.
-    user_role: "tutor" или "student" — роль текущего пользователя
-    user_id: ID текущего пользователя
-    other_id: ID второго участника
-    """
+
     if user_role == "tutor":
         tutor = get_tutor_by_id(db.tutor, user_id)
         student = get_student_by_id(db.student, other_id)

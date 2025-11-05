@@ -6,22 +6,32 @@
 <div class="container py-5">
 
     {% if tutor and student %}
-        <h3 class="mb-4">Pokalbis: {{ tutor.first_name }} {{ tutor.last_name }} ↔ {{ student.first_name }} {{ student.last_name }}</h3>
+<!-- Aiški minimalistinė antraštė -->
+<h3 class="text-center fw-semibold mb-4" style="color: #343a40; font-size: 1.5rem;">
+    {{ tutor.first_name }} {{ tutor.last_name }} ir {{ student.first_name }} {{ student.last_name }}
+</h3>
+<p class="text-center text-muted mb-4" style="font-size: 0.9rem;">
+    Pokalbis realiuoju laiku
+</p>
 
 
-        <div id="chat-box" class="card border-0 shadow-sm rounded-3 p-4 mb-4" style="height: 300px; overflow-y: auto;">
+        <p class="text-center text-muted mb-4">Bendraukite čia realiuoju laiku</p>
+
+        <!-- Chat langas -->
+        <div id="chat-box" class="card border-0 shadow-sm rounded-4 p-3 mb-4"
+             style="height: 400px; overflow-y: auto; background-color: #f8f9fa;">
             <p class="text-muted text-center mt-5">Čia ateityje bus rodomos žinutės.</p>
         </div>
 
-
+        <!-- Įvedimo laukas -->
         <div class="d-flex gap-2">
-            <input type="text" id="msg-input" class="form-control" placeholder="Rašykite žinutę...">
-            <button class="btn btn-primary" type="button" onclick="sendMessage()">
+            <input type="text" id="msg-input" class="form-control rounded-pill" placeholder="Rašykite žinutę...">
+            <button class="btn btn-primary rounded-pill px-4" type="button" onclick="sendMessage()">
                 <i class="bi bi-send"></i> Siųsti
             </button>
         </div>
 
-
+        <!-- Grįžimo mygtukas -->
         {% if sender_role == 'tutor' %}
             <a href="{{ url_for('view_tutor', tutor_id=tutor._id) }}" class="btn btn-outline-secondary mt-3">
                 <i class="bi bi-arrow-left"></i> Grįžti
@@ -33,10 +43,43 @@
         {% endif %}
 
     {% else %}
-        <p class="text-muted">Korepetitorius arba mokinys nerastas.</p>
+        <p class="text-muted text-center">Korepetitorius arba mokinys nerastas.</p>
     {% endif %}
 
 </div>
+
+<style>
+/* Chat bubble stilius */
+.chat-message {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+    display: inline-block;
+    word-wrap: break-word;
+}
+
+.chat-message.self {
+    background-color: #0d6efd;
+    color: white;
+    align-self: flex-end;
+}
+
+.chat-message.other {
+    background-color: #e9ecef;
+    color: black;
+    align-self: flex-start;
+}
+
+/* Laiko žymos stilius */
+.chat-message.self small {
+    color: rgba(255, 255, 255, 0.8); /* balta pusiau permatoma */
+}
+
+.chat-message.other small {
+    color: #6c757d; /* pilkas tekstas kitoms žinutėms */
+}
+</style>
 
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
@@ -48,30 +91,54 @@ const sender_role = "{{ sender_role }}";
 const chatBox = document.getElementById("chat-box");
 const msgInput = document.getElementById("msg-input");
 
-
 function appendMessage(sender, message, timestamp=null) {
     const div = document.createElement("div");
-    div.className = sender === sender_role ? "text-end mb-2" : "text-start mb-2";
-    const timeText = timestamp ? ` (${new Date(timestamp).toLocaleTimeString()})` : "";
-    div.textContent = `${sender}: ${message}${timeText}`;
+    const bubble = document.createElement("div");
+
+    // priskiriame klasę priklausomai nuo siuntėjo
+    bubble.className = 'chat-message ' + (sender === sender_role ? 'self ms-auto' : 'other me-auto');
+    bubble.textContent = message;
+    if (timestamp) {
+    const time = document.createElement("small");
+    time.className = "d-block mt-1";
+    time.style.fontSize = "0.7rem";
+
+    // Sukuriame Date objektą iš UTC laikrodžio
+    const utcDate = new Date(timestamp + "Z"); // "Z" nurodo UTC
+    time.textContent = utcDate.toLocaleTimeString('lt-LT', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    bubble.appendChild(time);
+}
+
+
+
+    div.className = "d-flex";
+    div.style.justifyContent = sender === sender_role ? "flex-end" : "flex-start";
+    div.appendChild(bubble);
+
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-
+// Prisijungimas prie chat kambario
 socket.emit("join", {tutor_id, student_id});
 
+// Įkeliame istorines žinutes
 socket.on("load_messages", (messages) => {
     chatBox.innerHTML = "";
     messages.reverse().forEach(m => appendMessage(m.sender, m.message, m.timestamp));
 });
 
-
+// Gavimas naujos žinutės
 socket.on("receive_message", (m) => {
     appendMessage(m.sender, m.message, m.timestamp);
 });
 
-
+// Siuntimas
 function sendMessage() {
     const message = msgInput.value.trim();
     if (!message) return;
