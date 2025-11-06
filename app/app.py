@@ -69,6 +69,9 @@ from api.lesson import (
     list_lessons_tutor_month,
     list_lesson_student_month
 )
+from api.payments import (
+    create_payment
+)
 
 from redis_api.redis_client import get_redis
 from redis.exceptions import LockError
@@ -841,7 +844,12 @@ def payment_student(student_id):
         payment_amount = request.form.get('payment_amount')
 
         # Išsaugome atsiliepimą Cassandra duomenų bazėje
-        # create_payment()
+        create_payment(
+            session_cassandra,
+            student_id,
+            tutor_id,
+            payment_amount
+        )
 
         flash('Mokėjimas sėkmingai atliktas!', 'success')
         return redirect("/")

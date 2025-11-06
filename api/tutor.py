@@ -148,6 +148,7 @@ def assign_student_to_tutor(
                 "parents_phone_numbers": student.get('parents_phone_numbers', []),
                 "student_class": student.get("class")
             },
+            "subject": subject
         }
 
         # Pridėti prie tutor.students_subjects

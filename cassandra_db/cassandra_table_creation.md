@@ -1,53 +1,37 @@
 ## Payment table
 
 ```sql
-CREATE TABLE payments.by_user_time ( 
+CREATE TABLE payments.tutor_by_student_time ( 
     id uuid,
-    user_id text,
-    for_tutor boolean,
+    tutor_id text,
+    student_id text,
     payment decimal,
     time_payment timestamp,
-    pay_timestamp timestamp,
     is_complete boolean,
-    PRIMARY KEY ( (id, user_id), pay_timestamp)
-) WITH CLUSTERING ORDER BY (pay_timestamp DESC);
+    PRIMARY KEY ( (tutor_id), time_payment, student_id )
+) WITH CLUSTERING ORDER BY (time_payment DESC, student_id ASC) ;
 ```
 
 ```sql
-CREATE TABLE payments.by_user (
+CREATE TABLE payments.student_by_tutor_time ( 
     id uuid,
-    user_id text,
-    for_tutor boolean,
+    tutor_id text,
+    student_id text,
     payment decimal,
     time_payment timestamp,
-    pay_timestamp timestamp,
     is_complete boolean,
-PRIMARY KEY (id, user_id) 
-);
+    PRIMARY KEY ( (student_id), time_payment, tutor_id )
+) WITH CLUSTERING ORDER BY (time_payment DESC, tutor_id ASC) ;
 ```
 
 ```sql
-CREATE TABLE payments.by_id (
+CREATE TABLE payments.time_by_amount ( 
     id uuid,
-    user_id text,
-    for_tutor boolean,
+    tutor_id text,
+    student_id text,
     payment decimal,
     time_payment timestamp,
-    pay_timestamp timestamp,
     is_complete boolean,
-PRIMARY KEY (id) 
-);
-```
-
-```sql
-CREATE TABLE payments.by_size (
-    id uuid,
-    user_id text,
-    for_tutor boolean,
-    payment decimal,
-    time_payment timestamp,
-    pay_timestamp timestamp,
-    is_complete boolean,
-PRIMARY KEY (id, payment)
-) WITH CLUSTERING ORDER BY (payment DESC);
+    PRIMARY KEY ( (time_payment), payment )
+) WITH CLUSTERING ORDER BY (payment DESC) ;
 ```
