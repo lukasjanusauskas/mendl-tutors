@@ -42,3 +42,18 @@ def parse_time_of_lesson(time: str) -> datetime:
         raise ValueError(f"Negalima sukurti pamokos praeityje")
 
     return time_lesson
+
+
+def get_student_name(
+    subjects_students: list[dict],
+    student_id: str
+) -> str:
+
+    for student_subject in subjects_students:
+        student = student_subject['student']
+        print(student)
+
+        if str(student['student_id']) == student_id:
+            return f"{student['first_name']} {student['last_name']}"
+
+    return "Neįvardytas/buvęs mokinys"

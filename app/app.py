@@ -844,12 +844,17 @@ def payment_student(student_id):
         payment_amount = request.form.get('payment_amount')
 
         # Išsaugome atsiliepimą Cassandra duomenų bazėje
-        create_payment(
-            session_cassandra,
-            student_id,
-            tutor_id,
-            payment_amount
-        )
+        try:
+            create_payment(
+                session_cassandra,
+                student_id,
+                tutor_id,
+                payment_amount
+            )
+        except Exception as e:
+            traceback.print_exc()
+            flash(f'Įvyko klaida, patikrinkite įvestą informaciją, jei viskas gerai, susiekite su administracija', 'alert')
+            return redirect("/")
 
         flash('Mokėjimas sėkmingai atliktas!', 'success')
         return redirect("/")
