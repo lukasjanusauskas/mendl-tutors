@@ -1397,24 +1397,65 @@ def handle_join(data):
 def handle_send_message(data):
     tutor_id = data["tutor_id"]
     student_id = data["student_id"]
-    sender = data["sender"]
+    sender_role = data["sender"]
     message_text = data["message"]
 
     message_id = uuid1()  # TIMEUUID
     sent_at = datetime.utcnow()
-    query = """
-            INSERT INTO messages.by_pair (tutor_id, student_id, message_id, sender_role, message_text, sent_at)
-            VALUES (%s, %s, %s, %s, %s, %s) \
-            """
-    session_cassandra.execute(query, (tutor_id, student_id, message_id, sender, message_text, sent_at))
+
+
+    query_pair = """
+        INSERT INTO messages.by_pair (tutor_id, student_id, message_id, sender_role, message_text, sent_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """
+    session_cassandra.execute(
+        query_pair,
+        (tutor_id, student_id, message_id, sender_role, message_text, sent_at)
+    )
+
+    sender_id = tutor_id if sender_role == "tutor" else student_id
+
+    query_sender = """
+        INSERT INTO messages.by_sender (sender_role, sender_id, tutor_id, student_id, message_id, message_text, sent_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """
+    session_cassandra.execute(
+        query_sender,
+        (sender_role, sender_id, tutor_id, student_id, message_id, message_text, sent_at)
+    )
+
 
     room = f"{tutor_id}_{student_id}"
     emit("receive_message", {
-        "sender": sender,
+        "sender": sender_role,
         "message": message_text,
         "timestamp": sent_at.isoformat()
     }, room=room)
 
+
+@app.route("/admin/messages/<role>/<user_id>")
+def admin_messages_by_sender(role, user_id):
+    try:
+        query = """
+            SELECT tutor_id, student_id, message_text, sent_at
+            FROM messages.by_sender
+            WHERE sender_role = %s AND sender_id = %s
+        """
+        rows = session_cassandra.execute(query, (role, user_id))
+        messages = list(rows)
+
+
+        messages.sort(key=lambda m: m.sent_at, reverse=True)
+
+        return render_template(
+            "admin_messages.html",
+            messages=messages,
+            role=role,
+            user_id=user_id
+        )
+    except Exception as e:
+        flash("Nepavyko gauti žinučių", "danger")
+        return redirect("/")
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
