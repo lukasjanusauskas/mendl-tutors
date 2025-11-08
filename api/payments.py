@@ -30,18 +30,20 @@ def create_payment(
     
     # Generate a new UUID for the id column
     payment_id = uuid4()
-    
+
     # Prepare the CQL insert statements with placeholders FOR EACH TABLE
-    tables = ['tutor_by_student_time', 'student_by_tutor_time', 'time_by_amount']
+    tables = ['tutor_by_student_time', 'student_by_tutor_time', 'by_amount']
     cql_inserts = [f"""INSERT INTO payments.{table} (
-            id, tutor_id, student_id, payment, time_payment, is_complete
-        ) VALUES (%s, %s, %s, %s, %s, %s)
+            id, tutor_id, student_id, payment_group, payment, time_payment, is_complete
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         for table in tables]
 
     # Bind values to parameters
+    # payment_group reikalingas bucketing, nes viename is table turim tai kaip partition key 
+    payment_group = int( float(payment) / 10 )
     payment = Decimal(payment).quantize(Decimal('0.001'))
-    params = (payment_id, tutor_id, student_id, payment, utc_time, True)
+    params = (payment_id, tutor_id, student_id, payment_group, payment, utc_time, True)
     
     # Execute the query
     for cql_insert in cql_inserts:
@@ -128,6 +130,50 @@ def read_payments_from_student(
     return return_rows
 
 
+def list_payments(
+    cassandra_session: Session,
+    tutor_collection,
+    payment_min: float,
+    payment_max: float
+) -> list:
+
+    # Nustatom per kurias particijas praeiti
+    payment_partition_min = int(payment_min / 10)
+    payment_partition_max = int(payment_max / 10)
+
+    # Praeinam per particijas
+    all_rows = []
+    for pay_group in range(payment_partition_min, payment_partition_max+1):
+
+        query = f"""
+            SELECT * FROM payments.by_amount
+            WHERE payment_group = {pay_group} AND
+                payment > {payment_min} AND payment < {payment_max}
+        """
+
+        rows = cassandra_session.execute(query)
+        all_rows.extend( list(rows) )
+
+    all_rows_w_names = []
+    for row in all_rows:
+
+        tutor = get_tutor_by_id(tutor_collection, row.tutor_id)
+        tutor_name = f"{tutor['first_name']} {tutor['last_name']}"
+
+        student_name = get_student_name(tutor['students_subjects'], row.student_id)
+
+        new_row = {
+            'tutor_name': tutor_name,
+            'student_name': student_name,
+            'time_payment': row.time_payment,
+            'payment': row.payment
+        }
+
+        all_rows_w_names.append(new_row)
+
+    return all_rows_w_names
+
+
 if __name__ == "__main__":
     
     session = get_cassandra_session()
@@ -135,6 +181,12 @@ if __name__ == "__main__":
     student_id = '68e9005c9ad6add2ad36b361'
 
     db = get_db()
-    tutor = get_tutor_by_id(db['tutor'], tutor_id)
+    # tutor = get_tutor_by_id(db['tutor'], tutor_id)
 
-    print( read_payments_from_student(session, db['tutor'], student_id) )
+    # print( read_payments_from_student(session, db['tutor'], student_id) )
+
+    print('Between 0 and 20')
+    print( list_payments(session, db['tutor'], payment_min=0.0, payment_max=20.0) )
+
+    print('Between 0 and 5')
+    print( list_payments(session, db['tutor'], payment_min=0.0, payment_max=5.0) )

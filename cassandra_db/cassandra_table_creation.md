@@ -6,6 +6,7 @@ CREATE TABLE payments.tutor_by_student_time (
     tutor_id text,
     student_id text,
     payment decimal,
+    payment_group int,
     time_payment timestamp,
     is_complete boolean,
     PRIMARY KEY ( (tutor_id), time_payment, student_id )
@@ -18,6 +19,7 @@ CREATE TABLE payments.student_by_tutor_time (
     tutor_id text,
     student_id text,
     payment decimal,
+    payment_group int,
     time_payment timestamp,
     is_complete boolean,
     PRIMARY KEY ( (student_id), time_payment, tutor_id )
@@ -25,13 +27,14 @@ CREATE TABLE payments.student_by_tutor_time (
 ```
 
 ```sql
-CREATE TABLE payments.time_by_amount ( 
+CREATE TABLE payments.by_amount ( 
     id uuid,
     tutor_id text,
     student_id text,
     payment decimal,
+    payment_group int,
     time_payment timestamp,
     is_complete boolean,
-    PRIMARY KEY ( (time_payment), payment )
-) WITH CLUSTERING ORDER BY (payment DESC) ;
+    PRIMARY KEY ( (payment_group), payment, id )
+) ;
 ```
