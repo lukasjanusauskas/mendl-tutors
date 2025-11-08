@@ -21,6 +21,9 @@ def create_payment(
     Create a payment from student and tutor ids and payment.
     Time is converted to UTC.
     """
+    
+    # Importuojam cia, kad nebutu circular import
+    from api.aggregates import invalidate_tutor_pay_cache, invalidate_student_pay_cache
 
     # Convert given time to UTC
     utc_time = datetime.now(timezone.utc)
@@ -43,6 +46,10 @@ def create_payment(
     # Execute the query
     for cql_insert in cql_inserts:
         cassandra_session.execute(cql_insert, params)
+
+    # Invalidate cache
+    invalidate_tutor_pay_cache(tutor_id)
+    invalidate_student_pay_cache(student_id)
 
 
 def read_payments_to_tutor(
@@ -105,6 +112,7 @@ def read_payments_from_student(
         return []
 
     return_rows = []
+
     for row in rows:
         # get student name from tutor info
         tutor = get_tutor_by_id(tutor_collection, row.tutor_id)

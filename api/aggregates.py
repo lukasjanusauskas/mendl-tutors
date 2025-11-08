@@ -1,6 +1,8 @@
 from bson import ObjectId
 from bson.decimal128 import Decimal128
 from redis_api.redis_client import get_redis
+from api.payments import read_payments_from_student, read_payments_to_tutor
+
 import os
 
 TUTOR_PAY_PERCENTAGE = 75
@@ -184,7 +186,12 @@ def invalidate_tutor_rating_cache(tutor_id: str):
     cache_key = f"tutor_rating:{tutor_id}"
     r.delete(cache_key)
 
-def pay_month_tutor(lesson_collection, tutor_id: str):
+def pay_month_tutor(
+    lesson_collection,
+    tutor_collection, 
+    cassandra_session,
+    tutor_id: str
+):
     """
     Apskaičiuoja mėnesinį atlyginimą dėstytojui pagal pamokas.
     Naudoja Redis kešą
@@ -233,6 +240,19 @@ def pay_month_tutor(lesson_collection, tutor_id: str):
     except StopIteration:
         monthly_pay = 0
 
+    # Perskaitome, kiek sumoketa is cassandra ir atemam
+    payments = read_payments_to_tutor(
+        cassandra_session,
+        tutor_collection,
+        tutor_id
+    )
+
+    pay_sum = sum([
+        float(payment['payment']) for payment in payments
+    ])
+
+    monthly_pay -= pay_sum
+
     # Įrašome į Redis
     r.set(cache_key, monthly_pay)
     return monthly_pay
@@ -253,7 +273,12 @@ def invalidate_tutor_pay_cache(tutor_id: str):
 
 
 
-def pay_month_student(lesson_collection, student_id: str):
+def pay_month_student(
+    cassandra_session,
+    tutor_collection,
+    lesson_collection,
+    student_id: str
+):
     """
     Apskaičiuoja mėnesinę sumą, kurią studentas sumokėjo už pamokas.
     Naudoja Redis kešą
@@ -301,6 +326,19 @@ def pay_month_student(lesson_collection, student_id: str):
 
     except StopIteration:
         monthly_pay = 0
+
+    # Perskaitome, kiek sumoketa is cassandra ir atemam
+    payments = read_payments_from_student(
+        cassandra_session,
+        tutor_collection,
+        student_id
+    )
+
+    pay_sum = sum([
+        float(payment['payment']) for payment in payments
+    ])
+
+    monthly_pay -= pay_sum
 
     # Įrašome į Redis
     r.set(cache_key, monthly_pay)

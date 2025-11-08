@@ -248,7 +248,12 @@ def view_student(student_id):
         if review_count:
             student['review_count'] = review_count
 
-        pay = pay_month_student(db['lesson'], student_id=student['_id'])
+        pay = pay_month_student(
+            session_cassandra,
+            db['tutor'],
+            db['lesson'],
+            student_id=student['_id']
+        )
         if pay:
             student['pay'] = pay
 
@@ -617,7 +622,12 @@ def view_tutor(tutor_id):
         if review_count:
             tutor['review_count'] = review_count
 
-        pay = pay_month_tutor(db['lesson'], tutor_id=tutor['_id'])
+        pay = pay_month_tutor(
+            db['lesson'],
+            db['tutor'],
+            session_cassandra,
+            tutor['_id']
+        )
         if pay:
             tutor['pay'] = pay
 
