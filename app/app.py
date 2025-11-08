@@ -1466,6 +1466,34 @@ def admin_messages_by_sender(role, user_id):
     except Exception as e:
         flash("Nepavyko gauti žinučių", "danger")
         return redirect("/")
+    
+@app.route("/admin/payments/<role>/<user_id>")
+def admin_payments_by_sender(role, user_id):
+    try:
+        if role == "student":
+            query = """
+                SELECT tutor_id, student_id, payment, time_payment
+                FROM payments.student_by_tutor_time
+                WHERE student_id = %s
+            """
+            rows = session_cassandra.execute(query, (user_id,))
+        else:
+            flash("Klaida", "warning")
+            return redirect("/")
+
+        payments = list(rows or [])
+
+        payments.sort(key=lambda m: getattr(m, "time_payment", None), reverse=True)
+
+        return render_template(
+            "admin_payments.html",
+            payments=payments,
+            role=role,
+            user_id=user_id
+        )
+    except Exception as e:
+        flash("Nepavyko gauti mokėjimų", "danger")
+        return redirect("/") 
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
