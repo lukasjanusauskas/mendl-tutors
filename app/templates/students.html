@@ -38,10 +38,13 @@
         </div>
     </form>
 
-    <!-- Mygtukas pridėti naują studentą -->
+    <!-- Mygtukas pridėti naują studentą ir peržiūrėti mokėjimus -->
     <div class="d-flex justify-content-end mb-3">
-        <a href="{{ url_for('add_student') }}" class="btn btn-outline-success shadow-sm fw-semibold">
+        <a href="{{ url_for('add_student') }}" class="btn btn-outline-success shadow-sm fw-semibold me-2">
             <i class="bi bi-plus-circle me-1"></i> Pridėti mokinį
+        </a>
+        <a href="{{ url_for('admin_all_payments') }}" class="btn btn-outline-secondary shadow-sm fw-semibold">
+            <i class="bi bi-cash me-1"></i> Peržiūrėti mokėjimus
         </a>
     </div>
 
