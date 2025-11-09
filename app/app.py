@@ -1392,7 +1392,6 @@ def handle_join(data):
         SELECT sender_role, message_text, sent_at 
         FROM messages.by_pair 
         WHERE tutor_id = %s AND student_id = %s 
-        LIMIT 50
     """
     rows = session_cassandra.execute(query, (tutor_id, student_id))
     messages = [
