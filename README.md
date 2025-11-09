@@ -3,11 +3,19 @@
 
 ## ER diagrama
 
+### Mongo
+
 ![](nosql_mendl.png)
 
 Diagramoje baltai pažymėtos tos esybės, kurias turime kaip fizines kolekcijas duomenų bazėje.
 Geltonai žymime sujungčias leneteles (angl. *join table*), kurios nurodo, kokius duomenis išrenkame į fizines kolekcijas, modeliuodami daug su daug (angl. *many-to-many*) sąryšius.
 Mėlynai žymime tai, ką mes fizinėse kolekcijose laikome objektais (viduje kolekcijos object tipas), kas nėra atskira esybė. Pavyzdžiui *subjects* diagramoje yra išskirta atskirai, kadangi modeliuojame kaip objektą, tačiau dalykams atskiros fizinės kolekcijos nedarom, tai ir žymim kita spalva.
+
+### Cassandra
+
+![](nosql_cass.pdf)
+
+Diagramoje mėlynai pažymėtos lentelės laikomos Cassandra, o žaliai - Mongo. Ryšius su `sutdent` žymim oranžine spalva, o ryšius su `tutor` - mėlynai.
 
 ## Projekto sturktūra
 ---
