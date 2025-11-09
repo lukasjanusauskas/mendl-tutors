@@ -70,7 +70,8 @@ from api.lesson import (
     list_lesson_student_month
 )
 from api.payments import (
-    create_payment
+    create_payment,
+    list_payments
 )
 
 from redis_api.redis_client import get_redis
@@ -1493,7 +1494,38 @@ def admin_payments_by_sender(role, user_id):
         )
     except Exception as e:
         flash("Nepavyko gauti mokėjimų", "danger")
-        return redirect("/") 
+        return redirect("/")
+    
+@app.route("/admin/payments/all")
+def admin_all_payments():
+    try:
+        role = request.args.get("role")
+        user_id = request.args.get("user_id")
+
+        payment_min = float(request.args.get("payment_min", 0.0))
+        payment_max = float(request.args.get("payment_max", 100.0))
+
+        payments = []
+
+        payments = list_payments(
+            session_cassandra,
+            db['tutor'],
+            payment_min=payment_min,
+            payment_max=payment_max
+        )
+
+        payments.sort(key=lambda m: m.get('time_payment'), reverse=True)
+        
+        return render_template(
+            "admin_all_payments.html",
+            payments=payments,
+            role=role,
+            user_id=user_id
+        )
+    except Exception as e:
+        flash("Nepavyko gauti mokėjimų", "danger")
+        return redirect("/")
+
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
