@@ -79,6 +79,11 @@
                    class="btn btn-outline-warning flex-grow-1">
                     <i class="bi bi-wallet2"></i> Peržiūrėti mokėjimus
                 </a>
+                {% elif session.session_type == 'student' %}
+                <a href="{{ url_for('student_payments', student_id = student._id) }}"
+                   class="btn btn-outline-warning flex-grow-1">
+                    <i class="bi bi-wallet2"></i> Peržiūrėti mokėjimus
+                </a>
                 {% endif %}
             </div>
         </div>

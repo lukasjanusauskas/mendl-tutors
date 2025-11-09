@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% set back_url = url_for('view_tutor', tutor_id=tutor._id) %}
+{% block title %}Gauti mokėjimai – {{ tutor_name }} {% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h3 class="mb-4">Jūsų gauti mokėjimai: </h3>
+
+    {% if payments %}
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Laikas</th>
+                    <th>Nuo mokinio</th>
+                    <th>Mokėjimo suma</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in payments %}
+                <tr>
+                    <td>{{ p.time_payment }}</td>
+                    <td>{{ p.student_name }}</td>
+                    <td>{{ p.payment }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-info">Mokėjimų nerasta.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -71,7 +71,9 @@ from api.lesson import (
 )
 from api.payments import (
     create_payment,
-    list_payments
+    list_payments,
+    read_payments_from_student,
+    read_payments_to_tutor
 )
 
 from redis_api.redis_client import get_redis
@@ -1525,6 +1527,101 @@ def admin_all_payments():
     except Exception as e:
         flash("Nepavyko gauti mokėjimų", "danger")
         return redirect("/")
+
+@app.route("/tutor/<tutor_id>/payments/")
+def tutor_payments(tutor_id):
+    try:
+        raw = read_payments_to_tutor(session_cassandra, db['tutor'], tutor_id)
+
+        tutor_doc = get_tutor_by_id(db['tutor'], tutor_id)
+        tutor_name = f"{tutor_doc.get('first_name','')} {tutor_doc.get('last_name','')}" if tutor_doc else '-'
+
+        payments = []
+        for r in raw or []:
+            tp = r.get('time_payment')
+            if hasattr(tp, 'strftime'):
+                time_str = tp.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                time_str = str(tp) if tp is not None else '-'
+
+            student_name = r.get('student') or r.get('student_name') or '-'
+
+            payments.append({
+                'tutor_name': tutor_name,
+                'tutor_id': tutor_id,
+                'student_name': student_name,
+                'payment': r.get('payment'),
+                'time_payment': time_str,
+                'time_payment_dt': tp
+            })
+
+        payments.sort(key=lambda m: m.get('time_payment_dt') or datetime.min, reverse=True)
+
+        if tutor_doc and tutor_doc.get('_id') is not None:
+            try:
+                tutor_doc['_id'] = str(tutor_doc.get('_id'))
+            except Exception:
+                pass
+
+        return render_template(
+            "tutor_payments.html",
+            payments=payments,
+            tutor_id=tutor_id,
+            tutor_name=tutor_name,
+            tutor=tutor_doc
+        )
+    except Exception as e:
+        flash("Nepavyko gauti mokėjimų", "danger")
+        return redirect("/")
+
+@app.route("/student/<student_id>/payments/")
+def student_payments(student_id):
+    try:
+        raw = read_payments_from_student(session_cassandra, db['tutor'], student_id)
+
+        payments = []
+        for r in raw or []:
+            tp = r.get('time_payment')
+            if hasattr(tp, 'strftime'):
+                time_str = tp.strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                time_str = str(tp) if tp is not None else '-'
+
+            payments.append({
+                'tutor_name': r.get('tutor') or r.get('tutor_name') or '-',
+                'tutor_id': None,
+                'student_name': None,
+                'payment': r.get('payment'),
+                'time_payment': time_str,
+                'time_payment_dt': tp
+            })
+
+        try:
+            student_doc = get_student_by_id(db['student'], student_id)
+            student_name = f"{student_doc.get('first_name','')} {student_doc.get('last_name','')}" if student_doc else None
+            for p in payments:
+                p['student_name'] = student_name
+        except Exception:
+            pass
+
+        payments.sort(key=lambda m: m.get('time_payment_dt') or datetime.min, reverse=True)
+
+        if student_doc and student_doc.get('_id') is not None:
+            try:
+                student_doc['_id'] = str(student_doc.get('_id'))
+            except Exception:
+                pass
+
+        return render_template(
+            "student_payments.html",
+            payments=payments,
+            student_id=student_id,
+            student = student_doc
+        )
+    except Exception as e:
+        flash("Nepavyko gauti mokėjimų", "danger")
+        return redirect("/")
+
 
 
 if __name__ == "__main__":
