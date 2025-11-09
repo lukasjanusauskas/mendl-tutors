@@ -13,7 +13,7 @@ Mėlynai žymime tai, ką mes fizinėse kolekcijose laikome objektais (viduje ko
 
 ### Cassandra
 
-![](nosql_cass.pdf)
+![](nosql_cass.png)
 
 Diagramoje mėlynai pažymėtos lentelės laikomos Cassandra, o žaliai - Mongo. Ryšius su `sutdent` žymim oranžine spalva, o ryšius su `tutor` - mėlynai.
 
