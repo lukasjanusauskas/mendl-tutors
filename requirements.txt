@@ -8,3 +8,4 @@ PyJWT
 redis
 cassandra-driver
 flask-socketio
+neo4j
