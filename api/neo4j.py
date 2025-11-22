@@ -2,6 +2,7 @@ from neo4j_db.neo4j_client import get_driver, NEO4J_DATABASE
 
 
 def get_schools(driver):
+    """Grąžina visas mokyklas"""
     query = """
     MATCH (school:School)
     RETURN school.name AS school_name
@@ -19,6 +20,7 @@ def get_schools(driver):
 
 
 def get_tutors_by_school(driver, school_name):
+    """Grąžina korepetitorius, kurie mokina tam tikros mokyklos mokinius"""
     query = """
     MATCH (t:Tutor)-[:TEACHES]->(s:Student)
     MATCH (s)-[:ATTENDS]->(school:School {name: $school_name})
@@ -36,7 +38,6 @@ def get_tutors_by_school(driver, school_name):
                 {
                     "first_name": str(data.get("first_name", "")),
                     "last_name": str(data.get("last_name", "")),
-                    "school_name": str(data.get("school_name", "")),
                 }
             )
 
@@ -241,6 +242,52 @@ def remove_friend(
             student2_last_name=student2_last_name,
         )
 
+def cancel_friend_request(
+    driver,
+    from_student_first_name,
+    from_student_last_name,
+    to_student_first_name,
+    to_student_last_name,
+):
+    query = """
+    MATCH (sender:Student {first_name: $from_student_first_name, last_name: $from_student_last_name})
+    MATCH (receiver:Student {first_name: $to_student_first_name, last_name: $to_student_last_name})
+    MATCH (sender)-[r:REQUESTS_FRIENDSHIP]->(receiver)
+    DELETE r
+    """
+
+    with driver.session(database=NEO4J_DATABASE) as session:
+        session.run(
+            query,
+            from_student_first_name=from_student_first_name,
+            from_student_last_name=from_student_last_name,
+            to_student_first_name=to_student_first_name,
+            to_student_last_name=to_student_last_name,
+        )
+
+def get_sent_friend_requests(driver, student_first_name, student_last_name):
+    query = """
+    MATCH (sender:Student {first_name: $student_first_name, last_name: $student_last_name})-[:REQUESTS_FRIENDSHIP]->(receiver:Student)
+    RETURN receiver.first_name AS first_name, receiver.last_name AS last_name
+    """
+
+    requests = []
+    with driver.session(database=NEO4J_DATABASE) as session:
+        result = session.run(
+            query,
+            student_first_name=student_first_name,
+            student_last_name=student_last_name,
+        )
+        for record in result:
+            data = record.data()
+            requests.append(
+                {
+                    "first_name": str(data.get("first_name", "")),
+                    "last_name": str(data.get("last_name", "")),
+                }
+            )
+
+    return requests
 
 if __name__ == "__main__":
     # python -m api.neo4j
@@ -256,20 +303,30 @@ if __name__ == "__main__":
     tutors = get_tutors_by_school(driver, school_name)
     print(f"Korepetitoriai, kurie moko {school_name} mokinius: {tutors}")
 
-    friend_req = send_friend_request(
-        driver, "Zigmas", "Zigmaitis", "Petras", "Petraitis"
-    )
+    friend_req = send_friend_request(driver, "Zigmas", "Zigmaitis", "Petras", "Petraitis")
     print("Zigmo Zigmaičio draugystės prašymas Petrui Petraičiui:", friend_req)
 
     friend_req = send_friend_request(driver, "Zigmas", "Zigmaitis", "auth", "testas")
     print("Zigmo Zigmaičio draugystės prašymas auth testui:", friend_req)
 
+    # Test get_sent_friend_requests
+    sent_requests = get_sent_friend_requests(driver, "Zigmas", "Zigmaitis")
+    print(f"Zigmo Zigmaičio išsiųsti draugystės prašymai: {sent_requests}")
+
     pending = get_pending_friend_requests(driver, "auth", "testas")
     print(f"auth testui išsiųsti draugystės prašymai: {pending}")
+
+    # Test cancel_friend_request
+    cancel_friend_request(driver, "Zigmas", "Zigmaitis", "auth", "testas")
+    print("Zigmo Zigmaičio draugystės prašymas auth testui buvo atšauktas.")
+
+    # Verify cancellation
+    sent_requests_after_cancel = get_sent_friend_requests(driver, "Zigmas", "Zigmaitis")
+    print(f"Zigmo Zigmaičio išsiųsti draugystės prašymai po atšaukimo: {sent_requests_after_cancel}")
 
     friends = get_friends(driver, "Zigmas", "Zigmaitis")
     print(f"Zigmo Zigmaičio draugai: {friends}")
 
     decline_friend_request(driver, "Zigmas", "Zigmaitis", "auth", "testas")
-
+    print("auth testas atmetė Zigmo Zigmaičio draugystės prašymą.")
     driver.close()
