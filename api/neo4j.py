@@ -242,6 +242,7 @@ def remove_friend(
             student2_last_name=student2_last_name,
         )
 
+
 def cancel_friend_request(
     driver,
     from_student_first_name,
@@ -264,6 +265,7 @@ def cancel_friend_request(
             to_student_first_name=to_student_first_name,
             to_student_last_name=to_student_last_name,
         )
+
 
 def get_sent_friend_requests(driver, student_first_name, student_last_name):
     query = """
@@ -289,6 +291,60 @@ def get_sent_friend_requests(driver, student_first_name, student_last_name):
 
     return requests
 
+
+def get_subject_tutors_by_student_friends_path_length_to_that_tutor(
+    driver, student_first_name, student_last_name, subject, max_path_length
+):
+    """
+    Grąžina tam tikrą pamoką dėstančius korepetitorius, kuriuos galima rasti per studento draugų tinklą
+    """
+    friends = get_friends(driver, student_first_name, student_last_name)
+    if not friends:
+        return None
+
+    query = f"""
+    MATCH (student:Student {{first_name: $student_first_name, last_name: $student_last_name}})
+    MATCH path = (student)-[:FRIENDS_WITH*1..{max_path_length}]-(friend:Student)-[teaches:TEACHES]-(tutor:Tutor)
+    WHERE $subject IN tutor.subjects
+    AND ALL(n IN nodes(path) WHERE single(x IN nodes(path) WHERE x = n))
+    WITH tutor, 
+        path,
+        LENGTH(path) AS path_length,
+        tutor.first_name AS first_name,
+        tutor.last_name AS last_name,
+        [node IN nodes(path) | node.first_name + ' ' + node.last_name] AS path_names
+    WITH tutor, first_name, last_name,
+        MIN(path_length) AS min_path_length,
+        COLLECT(path_names)[0] AS example_path
+    RETURN first_name, last_name, min_path_length, example_path
+    ORDER BY min_path_length, first_name, last_name
+    """
+
+    tutors = []
+    with driver.session(database=NEO4J_DATABASE) as session:
+        result = session.run(
+            query,
+            student_first_name=student_first_name,
+            student_last_name=student_last_name,
+            subject=subject,
+        )
+
+        for record in result:
+            data = record.data()
+            tutors.append(
+                {
+                    "first_name": str(data.get("first_name", "")),
+                    "last_name": str(data.get("last_name", "")),
+                    "path_length": data.get("min_path_length", 0),
+                    "path": data.get("example_path", []),
+                }
+            )
+    if tutors:
+        return tutors
+
+    return None
+
+
 if __name__ == "__main__":
     # python -m api.neo4j
     import os
@@ -309,18 +365,15 @@ if __name__ == "__main__":
     friend_req = send_friend_request(driver, "Zigmas", "Zigmaitis", "auth", "testas")
     print("Zigmo Zigmaičio draugystės prašymas auth testui:", friend_req)
 
-    # Test get_sent_friend_requests
     sent_requests = get_sent_friend_requests(driver, "Zigmas", "Zigmaitis")
     print(f"Zigmo Zigmaičio išsiųsti draugystės prašymai: {sent_requests}")
 
     pending = get_pending_friend_requests(driver, "auth", "testas")
     print(f"auth testui išsiųsti draugystės prašymai: {pending}")
 
-    # Test cancel_friend_request
     cancel_friend_request(driver, "Zigmas", "Zigmaitis", "auth", "testas")
     print("Zigmo Zigmaičio draugystės prašymas auth testui buvo atšauktas.")
 
-    # Verify cancellation
     sent_requests_after_cancel = get_sent_friend_requests(driver, "Zigmas", "Zigmaitis")
     print(f"Zigmo Zigmaičio išsiųsti draugystės prašymai po atšaukimo: {sent_requests_after_cancel}")
 
@@ -328,5 +381,36 @@ if __name__ == "__main__":
     print(f"Zigmo Zigmaičio draugai: {friends}")
 
     decline_friend_request(driver, "Zigmas", "Zigmaitis", "auth", "testas")
-    print("auth testas atmetė Zigmo Zigmaičio draugystės prašymą.")
+    print("auth testas atmetė Zigmo Zigmaičio draugystės prašymą.\n")
+    
+
+    subject_tutors = get_subject_tutors_by_student_friends_path_length_to_that_tutor(
+        driver, 
+        "Zigmas", 
+        "Zigmaitis", 
+        "Matematika",
+        5
+    )
+
+    if subject_tutors:
+        for tutor in subject_tutors:
+            print(f"{tutor['first_name']} {tutor['last_name']}, kelio ilgis: {tutor['path_length']}")
+            print(f"  Kelias: {' → '.join(tutor['path'])}")
+    else:
+        print("Nerasta korepetitorių arba studentas neturi draugų.")
+    
+    subject_tutors_2 = get_subject_tutors_by_student_friends_path_length_to_that_tutor(
+        driver, 
+        "Petras", 
+        "Petraitis", 
+        "Fizika",
+        5
+    )
+    print(f"\nPetro Petraičio draugų korepetitoriai (Fizika, max path 5):")
+    if subject_tutors_2:
+        for tutor in subject_tutors_2:
+            print(f"{tutor['first_name']} {tutor['last_name']}, kelio ilgis:  {tutor['path_length']}")
+    else:
+        print("Nerasta korepetitorių arba studentas neturi draugų.")
+    
     driver.close()
