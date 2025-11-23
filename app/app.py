@@ -76,6 +76,10 @@ from api.payments import (
     read_payments_to_tutor
 )
 
+from api.neo4j import (
+    get_tutors_by_school
+)
+
 from redis_api.redis_client import get_redis
 from redis.exceptions import LockError
 from cassandra_db.cassandra_client import get_cassandra_session
@@ -84,6 +88,7 @@ from cassandra.query import SimpleStatement
 from datetime import datetime
 from uuid import uuid1
 from cassandra.util import uuid_from_time
+from neo4j import GraphDatabase
 
 load_dotenv()
 
@@ -108,6 +113,13 @@ JWT_EXPIRATION_HOURS = 1
 
 session_cassandra = get_cassandra_session()
 
+NEO4J_URI = 'neo4j+s://d750cfd0.databases.neo4j.io'
+NEO4J_USERNAME = 'neo4j'
+NEO4J_PASSWORD = 'qwNQvz1-G-xC4NmSQo01PXIXSgIGgug5ZhRmGRSA6VQ'
+NEO4J_DATABASE = 'neo4j'
+AURA_INSTANCEID = 'd750cfd0'
+
+driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
 @app.route("/")
 def index():
@@ -584,28 +596,37 @@ def logout():
 @app.route("/tutors", methods=["GET"])
 def tutors():
     """
-    Puslapis su visų korepetitorių sąrašu ir paieškos galimybe pagal vardą ir pavardę.
+    Puslapis su visų korepetitorių sąrašu ir paieškos galimybe pagal vardą, pavardę ir mokyklą.
     """
     try:
         first_name = request.args.get("first_name", "").strip()
         last_name = request.args.get("last_name", "").strip()
-        tutor_collection = db["tutor"]
+        school_name = request.args.get("school_name", "").strip()
 
-        if first_name or last_name:
-            tutors_list = get_tutors_by_name(tutor_collection, first_name, last_name)
+        tutors_list = []
+
+        if school_name:
+            # Jei nurodyta mokykla, filtruojame pagal mokyklą
+            tutors_list = get_tutors_by_school(driver, school_name)
         else:
-            tutors_list = list(
-                tutor_collection.find({}).sort([("first_name", 1), ("last_name", 1)])
-            )
+            tutor_collection = db["tutor"]
+            if first_name or last_name:
+                tutors_list = get_tutors_by_name(tutor_collection, first_name, last_name)
+            else:
+                tutors_list = list(
+                    tutor_collection.find({}).sort([("first_name", 1), ("last_name", 1)])
+                )
 
         return render_template(
             "tutors.html",
             tutors=tutors_list,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            school_name=school_name
         )
     except Exception as e:
         return f"Klaida: {e}", 500
+
 
 
 @app.route("/tutor/<tutor_id>/view")
@@ -1624,4 +1645,4 @@ def student_payments(student_id):
 
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=5001, debug=True, allow_unsafe_werkzeug=True)

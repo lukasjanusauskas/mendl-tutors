@@ -12,7 +12,7 @@
     <!-- 🔍 Paieškos forma -->
     <form method="GET" action="{{ url_for('tutors') }}" class="card shadow-sm border-0 p-4 mb-4 bg-light">
         <div class="row g-3 justify-content-center align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label fw-semibold text-secondary">Vardas</label>
                 <div class="input-group">
                     <span class="input-group-text bg-white text-muted"><i class="bi bi-person"></i></span>
@@ -21,13 +21,22 @@
                            placeholder="Įveskite vardą">
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label fw-semibold text-secondary">Pavardė</label>
                 <div class="input-group">
                     <span class="input-group-text bg-white text-muted"><i class="bi bi-person-badge"></i></span>
                     <input type="text" name="last_name" class="form-control border-start-0"
                            value="{{ request.args.get('last_name', '') }}"
                            placeholder="Įveskite pavardę">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold text-secondary">Mokomų studentų mokyklos</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white text-muted"><i class="bi bi-building"></i></span>
+                    <input type="text" name="school_name" class="form-control border-start-0"
+                           value="{{ request.args.get('school_name', '') }}"
+                           placeholder="Įveskite mokyklos pavadinimą">
                 </div>
             </div>
             <div class="col-md-2 d-grid">
