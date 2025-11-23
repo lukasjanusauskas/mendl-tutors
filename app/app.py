@@ -121,6 +121,7 @@ AURA_INSTANCEID = 'd750cfd0'
 
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
+
 @app.route("/")
 def index():
     if 'session_type' in session:
