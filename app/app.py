@@ -119,7 +119,6 @@ NEO4J_PASSWORD = 'qwNQvz1-G-xC4NmSQo01PXIXSgIGgug5ZhRmGRSA6VQ'
 NEO4J_DATABASE = 'neo4j'
 AURA_INSTANCEID = 'd750cfd0'
 
-
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
 @app.route("/")
