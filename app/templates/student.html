@@ -19,6 +19,8 @@
     {% endif %}
 
     {% if student %}
+
+        <!-- Student Info -->
         <div class="card border-0 shadow-sm rounded-4 mb-5 p-5">
             <div class="d-flex align-items-center mb-4">
                 <div class="me-3">
@@ -66,10 +68,12 @@
                    class="btn btn-outline-success flex-grow-1">
                     <i class="bi bi-pencil-square"></i> Palikti atsiliepimą
                 </a>
+
                 <a href="{{ url_for('payment_student', student_id=student._id|string) }}"
                    class="btn btn-outline-success flex-grow-1">
                     <i class="bi bi-credit-card"></i> Atlikti mokėjimą
                 </a>
+
                 {% if session.session_type == 'admin' %}
                 <a href="{{ url_for('admin_messages_by_sender', role='student', user_id=student._id) }}"
                    class="btn btn-outline-warning flex-grow-1">
@@ -88,7 +92,53 @@
             </div>
         </div>
 
-        <!-- Korepetitoriai su chat mygtukais -->
+        <!-- Rasti korepetitorius per draugu tinklą -->
+<h3 class="mb-3 fw-bold text-success">Rasti korepetitorius per draugų tinklą</h3>
+
+<form method="get" class="row g-3 mb-4">
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">Pasirinkite dalyką:</label>
+        <select name="subject" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Pasirinkite --</option>
+            {% for subj in available_subjects %}
+                <option value="{{ subj }}" {% if selected_subject == subj %}selected{% endif %}>
+                    {{ subj }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+{% if selected_subject %}
+    <h5 class="mb-2">Rezultatai dalykui: <strong>{{ selected_subject }}</strong></h5>
+
+    {% if graph_tutors %}
+        <div class="row g-4 mb-5">
+            {% for tutor in graph_tutors %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card shadow-sm border-0 rounded-3 p-3 h-100">
+                        <h5 class="card-title">{{ tutor.first_name }} {{ tutor.last_name }}</h5>
+                        <p class="mb-1"><strong>Trumpiausias kelias:</strong> {{ tutor.path_length }}</p>
+                        <p class="mb-1"><strong>Kelias:</strong> {{ tutor.path | join(" → ") }}</p>
+
+                        <!-- Changed: Assign Student Button -->
+                        <a href="{{ url_for('add_student_to_tutor',
+                                            tutor_id=tutor.tutor_id,
+                                            student_id=student._id|string) }}"
+                           class="btn btn-success btn-sm mt-3">
+                            <i class="bi bi-plus-circle"></i> Priskirti mokinį
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">Draugų tinkle nerasta korepetitorių šiam dalykui.</p>
+    {% endif %}
+{% endif %}
+
+
+                <!-- Korepetitoriai su chat mygtukais -->
         <h3 class="mb-4 fw-bold text-success">Korepetitoriai</h3>
         {% if tutors %}
             <div class="row g-4 mb-5">
@@ -111,6 +161,32 @@
             </div>
         {% else %}
             <p class="text-muted">Mokinys šiuo metu neturi priskirtų korepetitorių.</p>
+        {% endif %}
+
+        <!-- Draugų tinklo korepetitoriai -->
+        {% if student.network_tutors %}
+        <h3 class="mb-4 fw-bold text-info">Korepetitoriai per draugų tinklą ({{ subject }})</h3>
+        <div class="row g-4 mb-5">
+            {% for tutor in student.network_tutors %}
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <div class="card h-100 shadow-sm border-0 rounded-3">
+                    <div class="card-body text-center">
+                        <h5 class="card-title mb-2">{{ tutor.first_name }} {{ tutor.last_name }}</h5>
+                        <p class="mb-1"><strong>Kelio ilgis:</strong> {{ tutor.path_length }}</p>
+                        <p class="mb-0"><strong>Pavyzdinis kelias:</strong> {{ tutor.path | join(' → ') }}</p>
+
+                        <!-- Changed: Assign Student Button -->
+                        <a href="{{ url_for('add_student_to_tutor',
+                                            tutor_id=tutor._id|string,
+                                            student_id=student._id|string) }}"
+                           class="btn btn-success btn-sm mt-2">
+                            <i class="bi bi-plus-circle"></i> Priskirti mokinį
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
         {% endif %}
 
         <!-- Pamokos -->

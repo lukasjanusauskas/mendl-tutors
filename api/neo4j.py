@@ -293,10 +293,11 @@ def get_sent_friend_requests(driver, student_first_name, student_last_name):
 
 
 def get_subject_tutors_by_student_friends_path_length_to_that_tutor(
-    driver, student_first_name, student_last_name, subject, max_path_length
+    driver, student_first_name, student_last_name, subject, max_path_length, existing_tutors
 ):
     """
-    Grąžina tam tikrą pamoką dėstančius korepetitorius, kuriuos galima rasti per studento draugų tinklą
+    Grąžina korepetitorius draugų tinkle, kurie dar nėra priskirti studentui.
+    existing_tutors: list of "FirstName LastName" korepetitorių, kuriuos studentas jau turi
     """
     friends = get_friends(driver, student_first_name, student_last_name)
     if not friends:
@@ -306,17 +307,22 @@ def get_subject_tutors_by_student_friends_path_length_to_that_tutor(
     MATCH (student:Student {{first_name: $student_first_name, last_name: $student_last_name}})
     MATCH path = (student)-[:FRIENDS_WITH*1..{max_path_length}]-(friend:Student)-[teaches:TEACHES]-(tutor:Tutor)
     WHERE $subject IN tutor.subjects
-    AND ALL(n IN nodes(path) WHERE single(x IN nodes(path) WHERE x = n))
+      AND ALL(n IN nodes(path) WHERE single(x IN nodes(path) WHERE x = n))
+      AND NOT tutor.first_name + ' ' + tutor.last_name IN $existing_tutors
     WITH tutor, 
-        path,
-        LENGTH(path) AS path_length,
-        tutor.first_name AS first_name,
-        tutor.last_name AS last_name,
-        [node IN nodes(path) | node.first_name + ' ' + node.last_name] AS path_names
+         path,
+         LENGTH(path) AS path_length,
+         tutor.first_name AS first_name,
+         tutor.last_name AS last_name,
+         [node IN nodes(path) | node.first_name + ' ' + node.last_name] AS path_names
     WITH tutor, first_name, last_name,
-        MIN(path_length) AS min_path_length,
-        COLLECT(path_names)[0] AS example_path
-    RETURN first_name, last_name, min_path_length, example_path
+         MIN(path_length) AS min_path_length,
+         COLLECT(path_names)[0] AS example_path
+    RETURN ID(tutor) AS tutor_id,
+           first_name,
+           last_name,
+           min_path_length,
+           example_path
     ORDER BY min_path_length, first_name, last_name
     """
 
@@ -327,22 +333,22 @@ def get_subject_tutors_by_student_friends_path_length_to_that_tutor(
             student_first_name=student_first_name,
             student_last_name=student_last_name,
             subject=subject,
+            existing_tutors=existing_tutors  # !!! perduodame parametrą
         )
 
         for record in result:
             data = record.data()
             tutors.append(
                 {
+                    "tutor_id": str(data.get("tutor_id", "")),
                     "first_name": str(data.get("first_name", "")),
                     "last_name": str(data.get("last_name", "")),
                     "path_length": data.get("min_path_length", 0),
                     "path": data.get("example_path", []),
                 }
             )
-    if tutors:
-        return tutors
+    return tutors if tutors else None
 
-    return None
 
 
 if __name__ == "__main__":

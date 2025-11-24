@@ -29,7 +29,8 @@ from api.tutor import (
     create_new_tutor,
     get_tutors_by_name,
     assign_student_to_tutor,
-    remove_student_from_tutor
+    remove_student_from_tutor,
+    get_tutor_id_by_name
 )
 from api.student import (
     get_students_tutors,
@@ -77,7 +78,8 @@ from api.payments import (
 )
 
 from api.neo4j import (
-    get_tutors_by_school
+    get_tutors_by_school,
+    get_subject_tutors_by_student_friends_path_length_to_that_tutor
 )
 
 from redis_api.redis_client import get_redis
@@ -247,6 +249,8 @@ def students():
         return f"Klaida: {e}", 500
 
 
+
+
 @app.route("/student/<student_id>")
 def view_student(student_id):
     if not check_student_session(session, student_id):
@@ -257,44 +261,75 @@ def view_student(student_id):
         student = get_student_by_id(db["student"], student_id)
         tutors = []
 
+        # Mongo korepetitorių paieška (tiesiogiai priskirti)
         tutors_cursor = db.tutor.find({"students_subjects.student.student_id": student_id})
 
-        review_count = get_student_review_count(db['review'],
-                                                student_id=student['_id'])
+        review_count = get_student_review_count(db['review'], student_id=student['_id'])
         if review_count:
             student['review_count'] = review_count
 
-        pay = pay_month_student(
-            session_cassandra,
-            db['tutor'],
-            db['lesson'],
-            student_id=student['_id']
-        )
+        pay = pay_month_student(session_cassandra, db['tutor'], db['lesson'], student_id=student['_id'])
         if pay:
             student['pay'] = pay
 
         lessons = []
         try:
-            lessons = list_lessons_student_week(
-                db["lesson"],
-                db["student"],
-                str(student['_id'])
-            )
+            lessons = list_lessons_student_week(db["lesson"], db["student"], str(student['_id']))
         except Exception as lesson_e:
             print(f"Error fetching lessons: {lesson_e}")
 
+        # Konversija Mongo korepetitorių
         for t in tutors_cursor:
             tutors.append({
                 "_id": str(t.get("_id")),
                 "first_name": t.get("first_name", ""),
                 "last_name": t.get("last_name", ""),
                 "email": t.get("email", ""),
-                "subject": ", ".join(
-                    [s.get("subject", "") for s in t.get("subjects", [])]
-                )
+                "subject": ", ".join([s.get("subject", "") for s in t.get("subjects", [])]),
             })
 
-        return render_template("student.html", student=student, tutors=tutors, lessons=lessons)
+        # DALYKO PASIRINKIMAS
+        available_subjects = student.get("subjects", [])
+        selected_subject = request.args.get("subject")
+        graph_tutors = None
+
+        existing_tutors = [f"{t['first_name']} {t['last_name']}" for t in tutors]
+
+        if selected_subject:
+            # Draugų tinklo korepetitoriai
+            friends_graph_tutors = get_subject_tutors_by_student_friends_path_length_to_that_tutor(
+                driver=driver,
+                student_first_name=student["first_name"],
+                student_last_name=student["last_name"],
+                subject=selected_subject,
+                max_path_length=4,
+                existing_tutors=existing_tutors
+            )
+
+            # Konvertuojam į MongoDB ObjectId naudojant vardą+pavardę
+            graph_tutors = []
+            if friends_graph_tutors:
+                for t in friends_graph_tutors:
+                    tutor_id = get_tutor_id_by_name(db, t["first_name"], t["last_name"])
+                    if tutor_id:  # jei randame MongoDB id
+                        graph_tutors.append({
+                            "tutor_id": tutor_id,          # MongoDB _id string
+                            "first_name": t["first_name"],
+                            "last_name": t["last_name"],
+                            "path_length": t["path_length"],
+                            "path": t["path"]
+                        })
+
+        return render_template(
+            "student.html",
+            student=student,
+            tutors=tutors,
+            lessons=lessons,
+            available_subjects=available_subjects,
+            graph_tutors=graph_tutors,
+            selected_subject=selected_subject,
+        )
+
     except Exception as e:
         traceback.print_exc()
         return render_template("student.html", student=None, tutors=None, lessons=[], error=str(e))

@@ -310,6 +310,19 @@ def remove_student_from_tutor(
         except:
             pass
 
+def get_tutor_id_by_name(db, first_name, last_name):
+    """
+    Grąžina MongoDB ObjectId string korepetitoriui pagal vardą ir pavardę.
+    """
+    tutor = db.tutor.find_one({
+        "first_name": first_name,
+        "last_name": last_name
+    })
+    if tutor:
+        # grąžina 24 simbolių hex string
+        return str(tutor["_id"])
+    else:
+        return None
 
 if __name__ == "__main__":
     db = get_db()
