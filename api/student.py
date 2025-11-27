@@ -17,9 +17,10 @@ from bson import ObjectId
 from datetime import timedelta
 import hashlib
 
+
 def create_new_student(
-    student_collection,
-    student_info: dict
+        student_collection,
+        student_info: dict
 ) -> InsertOneResult:
     """
     Sukurti studenta ir issaugoti i duombaze.
@@ -29,17 +30,17 @@ def create_new_student(
     lock = redis_client.lock("students:write", timeout=10)
     if not lock.acquire(blocking=True, blocking_timeout=5):
         raise LockError("Mokinių sąrašas šiuo metu redaguojamas")
-    
+
     try:
         student: dict = {}
 
-        # 1️⃣ Tikriname privalomus laukus
+        # Tikriname privalomus laukus
         required_arguments = [
-            'first_name', 
-            'last_name', 
-            'date_of_birth', 
-            'class', 
-            'subjects', 
+            'first_name',
+            'last_name',
+            'date_of_birth',
+            'class',
+            'subjects',
             'password',
             'parents_phone_numbers'
         ]
@@ -49,20 +50,20 @@ def create_new_student(
             student[field] = student_info[field]
 
         # Tikriname papildomus laukus
-        optional_arguments = ['student_phone_number', 'student_email', 'parents_email','second_name']
+        optional_arguments = ['student_phone_number', 'student_email', 'parents_email', 'second_name']
         for field in optional_arguments:
             if field in student_info:
                 student[field] = student_info[field]
 
-        # 3️⃣ Konvertuojame gimimo datą į datetime
+        # Konvertuojame gimimo datą į datetime
         date_of_birth_date = parse_date_of_birth(student_info['date_of_birth'])
         student['date_of_birth'] = date_of_birth_date
 
-        # 4️⃣ Tikriname subjects
+        # Tikriname subjects
         if not isinstance(student['subjects'], list) or len(student['subjects']) == 0:
             raise ValueError("subjects turi buti ne tuscias masyvas")
 
-        # 5️⃣ Tikriname, ar toks studentas jau egzistuoja (first_name + date_of_birth)
+        # Tikriname, ar toks studentas jau egzistuoja (first_name + date_of_birth)
         date_of_birth_start = date_of_birth_date
         date_of_birth_end = date_of_birth_start + timedelta(days=1)
         existing_student = student_collection.find_one({
@@ -78,7 +79,7 @@ def create_new_student(
         student['password_hashed'] = hash_algo.hexdigest()
         del student['password']
 
-        # 6️⃣ Įrašome į DB
+        # Įrašome į DB
         result = student_collection.insert_one(student)
         return result
     finally:
@@ -93,10 +94,12 @@ def get_student_by_id(student_collection, student_id: str):
     student = student_collection.find_one({"_id": ObjectId(student_id)})
     return serialize_doc(student) if student else None
 
+
 def get_all_students(student_collection):
     """Gražina visų studentų sąrašą."""
     students = student_collection.find()
     return [serialize_doc(s) for s in students]
+
 
 def get_students_by_name(student_collection, first_name: str, last_name: str):
     """Ieško studentų pagal vardą arba pavardę (case-insensitive)."""
@@ -119,7 +122,7 @@ def delete_student(student_collection, tutor_collection, student_id: str) -> dic
     lock = redis_client.lock(f"student:{student_id}", timeout=10)
     if not lock.acquire(blocking=True, blocking_timeout=5):
         raise LockError("Mokinys šiuo metu redaguojamas")
-    
+
     try:
         result: DeleteResult = student_collection.delete_one({"_id": ObjectId(student_id)})
 
@@ -140,8 +143,8 @@ def delete_student(student_collection, tutor_collection, student_id: str) -> dic
 
 
 def get_students_tutors(
-    tutor_collection,
-    student_id: str
+        tutor_collection,
+        student_id: str
 ):
     # Run a query to take all tutors with this student
     query_res = tutor_collection.find({
@@ -162,5 +165,4 @@ if __name__ == "__main__":
     student_collection = db['student']
     tutor_collection = db['tutor']
 
-
-    print( get_students_tutors(tutor_collection, "68dfe5e166fb223bfcdd8807") )
+    print(get_students_tutors(tutor_collection, "68dfe5e166fb223bfcdd8807"))
