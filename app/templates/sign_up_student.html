@@ -60,6 +60,21 @@
                 </div>
             </div>
 
+            <div class="mb-3 position-relative">
+                <label for="school" class="form-label">Kurioje mokykloje mokotės:</label>
+                <input type="text" id="school" name="school_display" class="form-control" readonly placeholder="Pasirinkite mokyklą">
+
+                <div id="schoolMenu" class="border rounded bg-white shadow p-2 position-absolute w-100"
+                     style="display:none; z-index:1000; max-height:300px; overflow-y:auto;">
+                    {% for school in schools %}
+                        <div class="school-item mb-1">
+                            <input type="radio" value="{{ school }}" name="school" class="form-check-input me-1">
+                            <label class="form-check-label">{{ school }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
             <div class="mb-3">
                 <label for="password" class="form-label">Slaptažodis:</label>
                 <input type="password" id="password" name="password" class="form-control" required>
@@ -85,6 +100,37 @@
             </div>
         </fieldset>
 
+        <fieldset class="border rounded-3 p-4 mb-4 shadow-sm bg-light">
+            <legend class="w-auto px-2">Korepetitorių pasirinkimas</legend>
+
+            <div class="mb-3 position-relative">
+                <label for="tutor_recomendation" class="form-label">Rekomenduojami korepetitoriai pagal mokyklą:</label>
+                <input type="text" id="tutor_recomendation" name="tutor_recomendation" class="form-control" placeholder="Pasirinkite korepetitorius" readonly required>
+                <div id="tutorMenu" class="border rounded bg-white shadow p-2 position-absolute w-100"
+                     style="display:none; z-index:1000; max-height:300px; overflow-y:auto;">
+                    <div id="fallbackText" class="text-muted small">Pasirinkite mokyklą, kad pamatytumėte rekomenduojamus korepetitorius.</div>
+                </div>
+            </div>
+
+            <div class="mb-3 position-relative">
+                <label for="all_tutors" class="form-label">Visi korepetitoriai:</label>
+                <input type="text" id="all_tutors" name="all_tutors" class="form-control" placeholder="Pasirinkite">
+                <div id="allTutorMenu" class="border rounded bg-white shadow p-2 position-absolute w-100"
+                     style="display:none; z-index:1000; max-height:300px; overflow-y:auto;">
+                    {% if all_tutors %}
+                        {% for t in all_tutors %}
+                            <div class="allTutor-item mb-1">
+                                <input type="checkbox" value="{{ t._id }}" data-name="{{ t.first_name }} {{ t.last_name }}" name="all_tutor_ids" class="form-check-input me-1">
+                                <label class="form-check-label">{{ t.first_name }} {{ t.last_name }}</label>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-muted small">Korepetitorių nėra</div>
+                    {% endif %}
+                </div>
+            </div>
+        </fieldset>
+
         <div class="text-center">
             <button type="submit" class="btn btn-primary px-5 py-2">Registruotis</button>
             <a href="{{ url_for('index') }}" class="btn btn-secondary px-5 py-2 ms-2">Atgal</a>
@@ -93,31 +139,151 @@
 </div>
 
 <script>
-    const input = document.getElementById('subjectsInput');
-    const menu = document.getElementById('subjectsMenu');
-    const checkboxes = menu.querySelectorAll('input[type=checkbox]');
+    const subjectsInput = document.getElementById('subjectsInput');
+    const subjectsMenu = document.getElementById('subjectsMenu');
+    const subjectsCheckboxes = subjectsMenu.querySelectorAll('input[type=checkbox]');
 
-    // Rodyti / slėpti meniu
-    input.addEventListener('click', (e) => {
+    // Rodyti / slėpti dalykų meniu
+    subjectsInput.addEventListener('click', (e) => {
         e.stopPropagation();
-        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        subjectsMenu.style.display = subjectsMenu.style.display === 'none' ? 'block' : 'none';
     });
 
     // Valdyti pasirinktus dalykus
-    checkboxes.forEach(cb => {
+    subjectsCheckboxes.forEach(cb => {
         cb.addEventListener('change', () => {
-            const selected = Array.from(checkboxes)
+            const selected = Array.from(subjectsCheckboxes)
                 .filter(c => c.checked)
                 .map(c => c.value)
                 .join(', ');
-            input.value = selected;
+            subjectsInput.value = selected;
         });
     });
 
-    // Paspaudus už laukelio ribų – paslėpti meniu
+    // Paspaudus už laukelio ribų – paslėpti dalykų meniu
     document.addEventListener('click', (e) => {
-        if (!menu.contains(e.target) && e.target !== input) {
-            menu.style.display = 'none';
+        if (!subjectsMenu.contains(e.target) && e.target !== subjectsInput) {
+            subjectsMenu.style.display = 'none';
+        }
+    });
+
+    // Logika mokykloms
+    const schoolInput = document.getElementById('school');
+    const schoolMenu = document.getElementById('schoolMenu');
+    const schoolRadios = schoolMenu.querySelectorAll('input[type=radio]');
+
+    // Rodyti / slėpti mokyklų meniu
+    schoolInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+        schoolMenu.style.display = schoolMenu.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Valdyti pasirinkta mokykla
+    schoolRadios.forEach(rb => {
+        rb.addEventListener('change', () => {
+            if (rb.checked) {
+                schoolInput.value = rb.value;
+            }
+        });
+    });
+
+    // Paspaudus už laukelio ribų – paslėpti mokyklų meniu
+    document.addEventListener('click', (e) => {
+        if (!schoolMenu.contains(e.target) && e.target !== schoolInput) {
+            schoolMenu.style.display = 'none';
+        }
+    });
+
+    // Gaunam info is tutor lauku
+    const tutorInput = document.getElementById('tutor_recomendation');
+    const tutorMenu = document.getElementById('tutorMenu');
+
+    // Atidarom/uzdarom meniu kai paspaudziam
+    tutorInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+        tutorMenu.style.display = tutorMenu.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Gaunam tutors pagal mokyklos pasirinkima
+    schoolRadios.forEach(rb => {
+        rb.addEventListener('change', async () => {
+            if (rb.checked) {
+                schoolInput.value = rb.value;
+                try {
+                    const resp = await fetch(`/api/tutors/by_school/${encodeURIComponent(rb.value)}`);
+                    if (!resp.ok) throw new Error('Klaida gaunant korepetitorius');
+                    const data = await resp.json();
+                    const tutors = (data && data.tutors) ? data.tutors : [];
+                    document.getElementById("fallbackText")?.classList.add("d-none");
+
+                    tutorMenu.innerHTML = '';
+
+                    if (tutors.length === 0) {
+                        tutorMenu.innerHTML = '<div class="text-muted small">Nerasta rekomenduojamų korepetitorių.</div>';
+                        document.getElementById("fallbackText")?.classList.remove("d-none");
+                    } else {
+                        tutors.forEach(t => {
+                            const name = (t.first_name || '') + ' ' + (t.last_name || '');
+                            const id = t['_id'] || '';
+                            const div = document.createElement('div');
+                            div.className = 'recommended-item mb-1';
+                            const input = document.createElement('input');
+                            input.type = 'checkbox';
+                            input.value = id;
+                            input.name = 'recommended_tutors';
+                            input.className = 'form-check-input me-1';
+                            input.dataset.tutorId = id;
+                            const label = document.createElement('label');
+                            label.className = 'form-check-label';
+                            label.textContent = name.trim();
+                            div.appendChild(input);
+                            div.appendChild(label);
+                            tutorMenu.appendChild(div);
+                        });
+
+                        const recCbs = tutorMenu.querySelectorAll('input[type=checkbox]');
+                        recCbs.forEach(cb => cb.addEventListener('change', () => {
+                            const selected = Array.from(recCbs).filter(c => c.checked).map(c => c.value).join(', ');
+                            tutorInput.value = selected;
+                        }));
+                    }
+                } catch (err) {
+                    const errMsg = (err && err.message) ? err.message : 'Nežinoma klaida';
+                    tutorMenu.innerHTML = `<div class="text-danger small">Klaida: ${errMsg}</div>`;
+                    console.error('Tutors-by-school fetch error:', err);
+                }
+            }
+        });
+    });
+
+    //Uzdaromas menu paspaudus is zonos ribu
+    document.addEventListener('click', (e) => {
+        if (!tutorMenu.contains(e.target) && e.target !== tutorInput) {
+            tutorMenu.style.display = 'none';
+        }
+    });
+
+    //Visu tutors menu
+    const allTutorsInput = document.getElementById('all_tutors');
+    const allTutorMenu = document.getElementById('allTutorMenu');
+    const allTutorCheckboxes = allTutorMenu.querySelectorAll('input[type=checkbox]');
+
+    allTutorsInput.addEventListener('click', (e) => {
+        e.stopPropagation();
+        allTutorMenu.style.display = allTutorMenu.style.display === 'none' ? 'block' : 'none';
+    });
+
+    allTutorCheckboxes.forEach(cb => cb.addEventListener('change', () => {
+        const selected = Array.from(allTutorCheckboxes)
+            .filter(c => c.checked)
+            .map(c => c.dataset.name || '')
+            .join(', ');
+        allTutorsInput.value = selected;
+    }));
+
+    document.addEventListener('click', (e) => {
+        if (!allTutorMenu.contains(e.target) && e.target !== allTutorsInput) {
+            allTutorMenu.style.display = 'none';
         }
     });
 </script>
