@@ -349,6 +349,37 @@ def get_subject_tutors_by_student_friends_path_length_to_that_tutor(
             )
     return tutors if tutors else None
 
+def search_students(driver, query_text, exclude_element_id=None):
+    query = """
+    MATCH (s:Student)
+    WHERE toLower(s.first_name) CONTAINS toLower($q)
+       OR toLower(s.last_name)  CONTAINS toLower($q)
+    {exclude_clause}
+    RETURN elementId(s) AS id,
+           s.first_name AS first_name,
+           s.last_name AS last_name,
+           s.class_num AS class_num,
+           s.school AS school
+    LIMIT 25
+    """
+
+    exclude_clause = ""
+    params = {"q": query_text}
+
+    if exclude_element_id:
+        exclude_clause = "AND elementId(s) <> $exclude_id"
+        params["exclude_id"] = exclude_element_id
+
+    query = query.format(exclude_clause=exclude_clause)
+
+    results = []
+    with driver.session(database=NEO4J_DATABASE) as session:
+        data = session.run(query, **params)
+        for row in data:
+            row = row.data()
+            results.append(row)
+
+    return results
 
 
 if __name__ == "__main__":

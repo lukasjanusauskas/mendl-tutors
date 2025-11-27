@@ -88,6 +88,10 @@
                    class="btn btn-outline-warning flex-grow-1">
                     <i class="bi bi-wallet2"></i> Peržiūrėti mokėjimus
                 </a>
+                <a href="{{ url_for('friends', student_id = student._id) }}"
+                   class="btn btn-outline-warning flex-grow-1">
+                    <i class="bi bi-wallet2"></i> Draugai
+                </a>
                 {% endif %}
             </div>
         </div>

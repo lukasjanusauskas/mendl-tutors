@@ -13,6 +13,8 @@ import hashlib
 import traceback
 import jwt
 import json
+from flask import jsonify
+
 
 from datetime import datetime, timedelta
 from bson import ObjectId
@@ -79,7 +81,14 @@ from api.payments import (
 
 from api.neo4j import (
     get_tutors_by_school,
-    get_subject_tutors_by_student_friends_path_length_to_that_tutor
+    get_subject_tutors_by_student_friends_path_length_to_that_tutor,
+    get_friends,
+    search_students,
+    send_friend_request,
+    remove_friend,
+    accept_friend_request,
+    decline_friend_request,
+    get_pending_friend_requests
 )
 
 from redis_api.redis_client import get_redis
@@ -1677,6 +1686,111 @@ def student_payments(student_id):
     except Exception as e:
         flash("Nepavyko gauti mokėjimų", "danger")
         return redirect("/")
+
+@app.route("/student/<student_id>/friends/")
+def friends(student_id):
+
+    student = get_student_by_id(db['student'], student_id)
+    if not student:
+        return "Student not found", 404
+
+    friends_list = get_friends(
+        driver,
+        student['first_name'],
+        student['last_name']
+    )
+
+
+    return render_template(
+        "friends.html",
+        friends_list=friends_list,
+        student=student
+    )
+
+@app.route("/student/<student_id>/friends/search")
+def search_students_route(student_id):
+    q = request.args.get("q", "").strip()
+
+    if not q:
+        return jsonify([])
+
+    results = search_students(driver, q, exclude_element_id=student_id)
+    return jsonify(results)
+
+@app.route("/student/<student_id>/friends/request", methods=["POST"])
+def request_friend(student_id):
+    from flask import request, jsonify
+
+    current_student = get_student_by_id(db['student'], student_id)
+
+    to_first_name = request.json.get("first_name")
+    to_last_name = request.json.get("last_name")
+
+    status = send_friend_request(
+        driver,
+        current_student['first_name'],
+        current_student['last_name'],
+        to_first_name,
+        to_last_name
+    )
+
+    return jsonify({"status": status})
+
+@app.route("/student/<student_id>/friends/remove", methods=["POST"])
+def remove_friend_route(student_id):
+    from flask import request, jsonify
+
+    current_student = get_student_by_id(db['student'], student_id)
+    data = request.json
+    to_first_name = data.get("first_name")
+    to_last_name = data.get("last_name")
+
+    remove_friend(
+        driver,
+        current_student['first_name'],
+        current_student['last_name'],
+        to_first_name,
+        to_last_name
+    )
+
+    return jsonify({"status": f"Draugas {to_first_name} {to_last_name} pašalintas."})
+
+
+@app.route("/student/<student_id>/friends/pending")
+def pending_requests(student_id):
+    current_student = get_student_by_id(db['student'], student_id)
+    requests = get_pending_friend_requests(driver,
+                                           current_student['first_name'],
+                                           current_student['last_name'])
+    return jsonify(requests)
+
+
+# Принять заявку
+@app.route("/student/<student_id>/friends/accept", methods=["POST"])
+def accept_request_route(student_id):
+    data = request.json
+    from_first_name = data.get("first_name")
+    from_last_name = data.get("last_name")
+
+    current_student = get_student_by_id(db['student'], student_id)
+    accept_friend_request(driver,
+                          from_first_name, from_last_name,
+                          current_student['first_name'], current_student['last_name'])
+    return jsonify({"status": f"Draugystė su {from_first_name} {from_last_name} patvirtinta."})
+
+
+
+@app.route("/student/<student_id>/friends/decline", methods=["POST"])
+def decline_request_route(student_id):
+    data = request.json
+    from_first_name = data.get("first_name")
+    from_last_name = data.get("last_name")
+
+    current_student = get_student_by_id(db['student'], student_id)
+    decline_friend_request(driver,
+                           from_first_name, from_last_name,
+                           current_student['first_name'], current_student['last_name'])
+    return jsonify({"status": f"Draugystės prašymas nuo {from_first_name} {from_last_name} atmestas."})
 
 
 

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% set back_url = url_for('view_student', student_id=student._id) %}
+{% block title %}{{ student.first_name }} {{ student.last_name }} – Draugai{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+
+    <h3 class="mb-4">Draugų sąrašas:</h3>
+    {% if friends_list %}
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Vardas</th>
+                    <th>Pavardė</th>
+                    <th>Mokykla</th>
+                    <th>Klasė</th>
+                    <th>Veiksmas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in friends_list %}
+                <tr>
+                    <td>{{ f.first_name }}</td>
+                    <td>{{ f.last_name }}</td>
+                    <td>{{ f.school or '-' }}</td>
+                    <td>{{ f.class_num or '-' }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeFriend('{{ f.first_name }}','{{ f.last_name }}')">
+                            Pašalinti
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-info">Draugų nerasta.</div>
+    {% endif %}
+
+    <hr class="my-4">
+
+    <h4>Ieškoti studentų:</h4>
+    <input class="form-control mb-3" id="studentSearch" placeholder="Įveskite vardą ar pavardę...">
+    <div id="searchResults"></div>
+
+    <hr class="my-4">
+
+    <!-- Pending friend requests -->
+    <h4>Laukiantys draugystės prašymai:</h4>
+    <div id="pendingRequests"></div>
+
+</div>
+
+<script>
+
+document.getElementById("studentSearch").addEventListener("input", async function () {
+    let q = this.value.trim();
+    if (!q) {
+        document.getElementById("searchResults").innerHTML = "";
+        return;
+    }
+
+    let resp = await fetch("{{ url_for('search_students_route', student_id=student._id) }}?q=" + encodeURIComponent(q));
+    let data = await resp.json();
+
+    let html = "<table class='table table-sm table-bordered'><tbody>";
+    for (let s of data) {
+        html += `
+            <tr>
+                <td>${s.first_name} ${s.last_name} (${s.school || '-'})</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="sendFriendRequest('${s.first_name}','${s.last_name}')">
+                        Pridėti draugą
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+    html += "</tbody></table>";
+
+    document.getElementById("searchResults").innerHTML = html;
+});
+
+
+async function sendFriendRequest(first_name, last_name) {
+    const resp = await fetch(`/student/{{ student._id }}/friends/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ first_name, last_name })
+    });
+    const data = await resp.json();
+    alert(data.status);
+}
+
+async function removeFriend(first_name, last_name) {
+    if (!confirm(`Ar tikrai norite pašalinti draugą: ${first_name} ${last_name}?`)) return;
+
+    const resp = await fetch(`/student/{{ student._id }}/friends/remove`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ first_name, last_name })
+    });
+
+    const data = await resp.json();
+    alert(data.status);
+    location.reload();
+}
+
+async function loadPendingRequests() {
+    const resp = await fetch(`/student/{{ student._id }}/friends/pending`);
+    const data = await resp.json();
+
+    if (!data.length) {
+        document.getElementById("pendingRequests").innerHTML = "<div class='alert alert-info'>Nėra laukiančių prašymų.</div>";
+        return;
+    }
+
+    let html = "<table class='table table-sm table-bordered'><tbody>";
+    for (let r of data) {
+        html += `
+            <tr>
+                <td>${r.first_name} ${r.last_name}</td>
+                <td>
+                    <button class="btn btn-success btn-sm" onclick="acceptRequest('${r.first_name}','${r.last_name}')">Accept</button>
+                    <button class="btn btn-danger btn-sm" onclick="declineRequest('${r.first_name}','${r.last_name}')">Decline</button>
+                </td>
+            </tr>
+        `;
+    }
+    html += "</tbody></table>";
+
+    document.getElementById("pendingRequests").innerHTML = html;
+}
+
+async function acceptRequest(first_name, last_name) {
+    const resp = await fetch(`/student/{{ student._id }}/friends/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ first_name, last_name })
+    });
+    const data = await resp.json();
+    alert(data.status);
+    loadPendingRequests();
+    location.reload();
+}
+
+async function declineRequest(first_name, last_name) {
+    const resp = await fetch(`/student/{{ student._id }}/friends/decline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ first_name, last_name })
+    });
+    const data = await resp.json();
+    alert(data.status);
+    loadPendingRequests();
+}
+
+
+loadPendingRequests();
+</script>
+
+{% endblock %}
