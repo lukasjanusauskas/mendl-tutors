@@ -70,6 +70,8 @@ from api.lesson import (
     list_lessons_tutor_month,
     list_lesson_student_month
 )
+from api.neo4j import get_schools, get_tutors_by_school
+from flask import jsonify
 from api.payments import (
     create_payment,
     list_payments,
@@ -136,7 +138,7 @@ def index():
 
 @app.before_request
 def check_session_type():
-    if request.endpoint in ('login', 'logout', 'test_jwt'):
+    if request.endpoint in ('login', 'logout', 'test_jwt', 'api_tutors_by_school'):
         return None
 
     if request.endpoint and request.endpoint.startswith('sign_up'):
@@ -473,8 +475,24 @@ def sign_up_student():
         except Exception as e:
             return render_template('sign_up_student.html', error=str(e))
 
-    # GET request
-    return render_template('sign_up_student.html')
+    # GET request – fetch schools for dropdown and tutors list
+    schools = []
+    all_tutors = []
+    try:
+        from neo4j_db.neo4j_client import get_driver
+        driver = get_driver()
+        schools = get_schools(driver)
+    except Exception as e:
+        print(f"Error fetching schools: {e}")
+        schools = []
+
+    try:
+        all_tutors = get_all_tutors(db['tutor'])
+    except Exception as e:
+        print(f"Error fetching all tutors: {e}")
+        all_tutors = []
+
+    return render_template('sign_up_student.html', schools=schools, all_tutors=all_tutors)
 
 
 @app.route('/sign-up-tutor', methods=['GET', 'POST'])
@@ -1629,6 +1647,18 @@ def tutor_payments(tutor_id):
     except Exception as e:
         flash("Nepavyko gauti mokėjimų", "danger")
         return redirect("/")
+
+
+@app.route('/api/tutors/by_school/<path:school_name>')
+def api_tutors_by_school(school_name):
+    try:
+        from neo4j_db.neo4j_client import get_driver
+        driver = get_driver()
+        tutors = get_tutors_by_school(driver, school_name)
+        return jsonify({'tutors': tutors})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'tutors': [], 'error': str(e)}), 500
 
 @app.route("/student/<student_id>/payments/")
 def student_payments(student_id):
