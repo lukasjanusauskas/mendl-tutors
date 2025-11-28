@@ -238,6 +238,7 @@
                             input.name = 'recommended_tutors';
                             input.className = 'form-check-input me-1';
                             input.dataset.tutorId = id;
+                            input.dataset.tutorName = name.trim();
                             const label = document.createElement('label');
                             label.className = 'form-check-label';
                             const subjectsDisplay = Array.isArray(t.subjects) ? t.subjects.join(', ') : '';
@@ -249,7 +250,7 @@
 
                         const recCbs = tutorMenu.querySelectorAll('input[type=checkbox]');
                         recCbs.forEach(cb => cb.addEventListener('change', () => {
-                            const selected = Array.from(recCbs).filter(c => c.checked).map(c => c.value).join(', ');
+                            const selected = Array.from(recCbs).filter(c => c.checked).map(c => c.dataset.tutorName).join(', ');
                             tutorInput.value = selected;
                         }));
                     }
