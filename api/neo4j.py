@@ -43,6 +43,38 @@ def get_tutors_by_school(driver, school_name):
 
     return tutors
 
+def create_student(driver, student_first_name, student_last_name, class_num=None):
+    """Sukuria mokinį neo4j duomenų bazėje"""
+    query = """
+    MERGE (s:Student {first_name: $student_first_name, last_name: $student_last_name})
+    ON CREATE SET s.class_num = $class_num
+    RETURN s
+    """
+
+    with driver.session(database=NEO4J_DATABASE) as session:
+        session.run(
+            query,
+            student_first_name=student_first_name,
+            student_last_name=student_last_name,
+            class_num=class_num,
+        )
+
+def set_student_school(driver, student_first_name, student_last_name, school_name):
+    """Prideda mokinį prie mokyklos"""
+    query = """
+    MATCH (s:Student {first_name: $student_first_name, last_name: $student_last_name})
+    MATCH (school:School {name: $school_name})
+    MERGE (s)-[:ATTENDS]->(school)
+    """
+
+    with driver.session(database=NEO4J_DATABASE) as session:
+        session.run(
+            query,
+            student_first_name=student_first_name,
+            student_last_name=student_last_name,
+            school_name=school_name,
+        ) 
+
 
 def send_friend_request(
     driver,

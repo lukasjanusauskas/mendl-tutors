@@ -72,7 +72,7 @@ from api.lesson import (
     list_lessons_tutor_month,
     list_lesson_student_month
 )
-from api.neo4j import get_schools, get_tutors_by_school
+
 from flask import jsonify
 from api.payments import (
     create_payment,
@@ -82,6 +82,7 @@ from api.payments import (
 )
 
 from api.neo4j import (
+    get_schools,
     get_tutors_by_school,
     get_subject_tutors_by_student_friends_path_length_to_that_tutor,
     get_friends,
@@ -90,7 +91,9 @@ from api.neo4j import (
     remove_friend,
     accept_friend_request,
     decline_friend_request,
-    get_pending_friend_requests
+    get_pending_friend_requests,
+    create_student,
+    set_student_school
 )
 
 from redis_api.redis_client import get_redis
@@ -408,6 +411,8 @@ def sign_up_all():
 
 @app.route('/sign-up-student', methods=['GET', 'POST'])
 def sign_up_student():
+    from neo4j_db.neo4j_client import get_driver
+
     if request.method == 'POST':
         try:
             # Validate and prepare data before sending to API
@@ -469,8 +474,13 @@ def sign_up_student():
             else:
                 student_info['subjects'] = []
 
-            # Sukuriame studentą
+            # Sukuriame studentą mongo duomenų bazėje
             new_student = create_new_student(db.student, student_info)
+            driver = get_driver()
+            # Sukuriame studento neo4j duomenų bazėje
+            create_student(driver, student_info['first_name'], student_info['last_name'], student_info['class'])
+            # Priskiriam studentą mokyklai
+            set_student_school(driver, student_info['first_name'], student_info['last_name'], request.form['school'])
             student_id = new_student.inserted_id
 
             session['user_id'] = str(student_id)
