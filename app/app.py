@@ -496,7 +496,10 @@ def sign_up_student():
         schools = []
 
     try:
-        all_tutors = get_all_tutors(db['tutor'])
+        for tutor in db['tutor'].find({}):
+            subjects = [s.get("subject", "") for s in tutor.get("subjects", [])]
+            tutor["subjects_display"] = ", ".join(subjects)
+            all_tutors.append(tutor)
     except Exception as e:
         print(f"Error fetching all tutors: {e}")
         all_tutors = []
@@ -1664,7 +1667,35 @@ def api_tutors_by_school(school_name):
         from neo4j_db.neo4j_client import get_driver
         driver = get_driver()
         tutors = get_tutors_by_school(driver, school_name)
-        return jsonify({'tutors': tutors})
+        mongo_tutor = db['tutor']
+
+        result = []
+        for t in tutors or []:
+            first = t.get("first_name")
+            last = t.get("last_name")
+
+            tutor_doc = mongo_tutor.find_one({
+                "first_name": first,
+                "last_name": last
+            })
+
+            subjects = []
+            mongo_id = None
+            if tutor_doc:
+                subjects = [s.get("subject", "") for s in tutor_doc.get("subjects", [])]
+                try:
+                    mongo_id = str(tutor_doc.get("_id"))
+                except Exception:
+                    mongo_id = None
+
+            merged = dict(t)
+            merged["subjects"] = subjects
+            if mongo_id:
+                merged["_id"] = mongo_id
+
+            result.append(merged)
+
+        return jsonify({'tutors': result})
     except Exception as e:
         traceback.print_exc()
         return jsonify({'tutors': [], 'error': str(e)}), 500

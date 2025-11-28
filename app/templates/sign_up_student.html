@@ -121,7 +121,12 @@
                         {% for t in all_tutors %}
                             <div class="allTutor-item mb-1">
                                 <input type="checkbox" value="{{ t._id }}" data-name="{{ t.first_name }} {{ t.last_name }}" name="all_tutor_ids" class="form-check-input me-1">
-                                <label class="form-check-label">{{ t.first_name }} {{ t.last_name }}</label>
+                                <label class="form-check-label">
+                                    {{ t.first_name }} {{ t.last_name }}
+                                    {% if t.subjects_display %}
+                                        ({{ t.subjects_display }})
+                                    {% endif %}
+                                </label>
                             </div>
                         {% endfor %}
                     {% else %}
@@ -235,7 +240,8 @@
                             input.dataset.tutorId = id;
                             const label = document.createElement('label');
                             label.className = 'form-check-label';
-                            label.textContent = name.trim();
+                            const subjectsDisplay = Array.isArray(t.subjects) ? t.subjects.join(', ') : '';
+                            label.textContent = `${name.trim()}${subjectsDisplay ? ' (' + subjectsDisplay + ')' : ''}`;
                             div.appendChild(input);
                             div.appendChild(label);
                             tutorMenu.appendChild(div);
