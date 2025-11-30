@@ -72,7 +72,7 @@ from api.lesson import (
     list_lessons_tutor_month,
     list_lesson_student_month
 )
-
+from api.neo4j import get_schools, get_tutors_by_school
 from flask import jsonify
 from api.payments import (
     create_payment,
@@ -417,6 +417,12 @@ def sign_up_student():
 
     if request.method == 'POST':
         try:
+            # Gaunam tutorius is html
+            selected_recommended = request.form.getlist('recommended_tutors')
+            selected_all = request.form.getlist('all_tutor_ids')
+            # Merginam tutorius visus
+            selected_tutors = list(dict.fromkeys((selected_recommended or []) + (selected_all or [])))
+
             # Validate and prepare data before sending to API
             # Convert class to integer
             try:
@@ -469,12 +475,8 @@ def sign_up_student():
                 student_info['parents_email'] = request.form['parents_email']
 
             # Subjects - konvertuojame iš string į list
-            subjects_raw = request.form.get('subjects', '')
-            if subjects_raw:
-                subjects_list = [s.strip() for s in subjects_raw.split(',') if s.strip()]
-                student_info['subjects'] = subjects_list
-            else:
-                student_info['subjects'] = []
+            subject_list = request.form.getlist('subjects')
+            student_info['subjects'] = subject_list
 
             # Sukuriame studentą mongo duomenų bazėje
             new_student = create_new_student(db.student, student_info)
@@ -484,6 +486,32 @@ def sign_up_student():
             # Priskiriam studentą mokyklai
             set_student_school(driver, student_info['first_name'], student_info['last_name'], request.form['school'])
             student_id = new_student.inserted_id
+
+            # Priskiriam studenta prie pasirinktu korepetitoriu
+            if selected_tutors:
+                subjects_for_student = student_info.get('subjects') or []
+                for t_id in selected_tutors:
+                    tutor_id_str = str(t_id)
+                    # Skaitom korepetitoriaus subjectus
+                    try:
+                        tutor_doc = db['tutor'].find_one({"_id": ObjectId(tutor_id_str)})
+                        tutor_subjects = [s.get('subject') for s in tutor_doc.get('subjects', [])]
+                    except Exception:
+                        tutor_subjects = []
+
+                    # Priskiriam prie dalyku kuriuos pasirinko ir studentas ir kuriuos turi tutor
+                    if subjects_for_student:
+                        to_assign = [s for s in subjects_for_student if s in tutor_subjects]
+                        if not to_assign:
+                            raise ValueError("Rinkitės korepetitorius su jūsų nurodytais dalykais")
+                        for subj in to_assign:
+                            try:
+                                assign_student_to_tutor(db.tutor, db.student, tutor_id_str, str(student_id), subj)
+                            except LockError:
+                                # skipinam tutor
+                                pass
+                            except Exception as assn_e:
+                                print(f"Nepavyko priskirt (tutor={tutor_id_str}, subj={subj}): {assn_e}")
 
             session['user_id'] = str(student_id)
             session['session_type'] = STUDENT_TYPE
@@ -496,7 +524,7 @@ def sign_up_student():
         except Exception as e:
             return render_template('sign_up_student.html', error=str(e))
 
-    # GET request – fetch schools for dropdown and tutors list
+    # Gaunam mokyklas
     schools = []
     all_tutors = []
     try:
