@@ -75,6 +75,22 @@ def set_student_school(driver, student_first_name, student_last_name, school_nam
             school_name=school_name,
         ) 
 
+def set_student_tutor(driver, student_first_name, student_last_name, tutor_first_name, tutor_last_name):
+    """Prideda mokinį prie korepetitoriaus"""
+    query = """
+    MATCH (s:Student {first_name: $student_first_name, last_name: $student_last_name})
+    MATCH (t:Tutor {first_name: $tutor_first_name, last_name: $tutor_last_name})
+    MERGE (t)-[:TEACHES]->(s)
+    """
+
+    with driver.session(database=NEO4J_DATABASE) as session:
+        session.run(
+            query,
+            student_first_name=student_first_name,
+            student_last_name=student_last_name,
+            tutor_first_name=tutor_first_name,
+            tutor_last_name=tutor_last_name,
+        ) 
 
 def send_friend_request(
     driver,

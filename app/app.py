@@ -93,7 +93,8 @@ from api.neo4j import (
     decline_friend_request,
     get_pending_friend_requests,
     create_student,
-    set_student_school
+    set_student_school,
+    set_student_tutor
 )
 
 from redis_api.redis_client import get_redis
@@ -319,6 +320,7 @@ def view_student(student_id):
                 max_path_length=4,
                 existing_tutors=existing_tutors
             )
+            print(friends_graph_tutors)
 
             # Konvertuojam į MongoDB ObjectId naudojant vardą+pavardę
             graph_tutors = []
@@ -1014,8 +1016,13 @@ def add_student_to_tutor(tutor_id):
                         student_id,
                         subject
                     )
+                    
                     if result.modified_count > 0:
                         flash("Mokinys sėkmingai priskirtas!", "success")
+
+                        student = get_student_by_id(db['student'], student_id)
+                        set_student_tutor(driver, student['first_name'], student['last_name'], tutor['first_name'], tutor['last_name'])
+
                         return redirect(url_for("view_tutor", tutor_id=tutor_id))
                     else:
                         flash("Nepavyko priskirti mokinio.", "danger")
