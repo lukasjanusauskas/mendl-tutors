@@ -9,3 +9,5 @@ redis
 cassandra-driver
 flask-socketio
 neo4j
+clickhouse-connect
+pandas
