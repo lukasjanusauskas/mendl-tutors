@@ -11,3 +11,4 @@ flask-socketio
 neo4j
 clickhouse-connect
 pandas
+pyarrow
