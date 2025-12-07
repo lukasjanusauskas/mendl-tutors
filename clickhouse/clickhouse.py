@@ -7,15 +7,18 @@ from clickhouse.clickhouse_config import (
 import clickhouse_connect
 from neo4j_db.neo4j_client import get_driver as get_neo4j_driver
 import pandas as pd
+from datetime import date
 from api.student import get_students_by_name
+from api.tutor import get_tutors_by_name
 from api.connection import get_db
 
 
 def get_students_schools_neo4j(neo4j_driver):
 
     query = """
+    MATCH (s:Student)
     OPTIONAL MATCH (s:Student)-[:ATTENDS]->(sch:School)
-    MATCH (t:Tutor)-[st_conn:TEACHES]->(s:Student)
+    OPTIONAL MATCH (t:Tutor)-[st_conn:TEACHES]->(s:Student)
     RETURN s.first_name AS student_first_name, 
         s.last_name AS student_last_name, 
         s.class_num AS class,
@@ -32,13 +35,15 @@ def get_students_schools_neo4j(neo4j_driver):
         return [record.data() for record in results]
 
 
-
-def form_student_data(data_row, ix, student_collection):
+def form_student_data(data_row, ix, student_collection, school_ix):
     output = {
         'student_sk': ix,
         'first_name': data_row['student_first_name'],
         'last_name': data_row['student_last_name'],
-        'class': data_row['class']
+        'class': data_row['class'],
+        'school_fk': school_ix,
+        'valid_from': date.today(),
+        'valid_to': None
     }
 
     student_mongo = get_students_by_name(
@@ -47,18 +52,25 @@ def form_student_data(data_row, ix, student_collection):
         output['last_name']
     )[0]
 
-    output['date_of_birth'] = student_mongo['date_of_birth']
+    output['date_of_birth'] = student_mongo['date_of_birth'].date()
         
     return output
         
 
-def form_tutor_data(data_row, ix):
+def form_tutor_data(data_row, ix, tutor_collection):
     output = {
         'tutor_sk': ix,
         'first_name': data_row['tutor_first_name'],
         'last_name': data_row['tutor_last_name'],
-        'date_of_birth': None
     }
+
+    tutor_mongo = get_tutors_by_name(
+        tutor_collection,
+        output['first_name'],
+        output['last_name']
+    )[0]
+
+    output['date_of_birth'] = tutor_mongo['date_of_birth'].date()
 
     return output
 
@@ -68,9 +80,6 @@ def form_school_data(data_row, ix):
         'school_sk': ix,
         'name': data_row['school_name'],
         'nationality': data_row['school_nationality'],
-        # TODO: figure something out
-        'start_date': None,
-        'end_date': None
     }
 
     return output
@@ -93,7 +102,8 @@ def get_fact_table(
 
 def parse_all_data(
     data,
-    student_collection
+    student_collection,
+    tutor_collection
 ):
 
     # For storing fact table
@@ -107,26 +117,27 @@ def parse_all_data(
 
     for data_row in data:
 
-        # Studento raktas students dictionary
-        student_key = (
-            data_row['student_first_name'], 
-            data_row['student_last_name']
-        )
-        if student_key not in students:
-            students[student_key] = form_student_data(data_row, len(students), student_collection)
-            student_ix = len(students)
-
-        else:
-            student_ix = students[student_key]['student_sk']
-
         # Korepetitoriaus raktas tutors dict
         tutor_key = (
             data_row['tutor_first_name'], 
             data_row['tutor_last_name']
         )
-        if tutor_key not in tutors:
-            tutors[tutor_key] = form_tutor_data(data_row, len(tutors))
-            tutor_ix = len(tutors)
+        if tutor_key[0] is None:
+            if tutor_key in tutors:
+                tutor_ix = tutors[tutor_key]['tutor_sk']
+
+            else:
+                tutors[tutor_key] = {
+                    'tutor_sk': len(tutors),
+                    'first_name': '',
+                    'last_name': '',
+                    'date_of_birth': None
+                }
+                tutor_ix = len(tutors) - 1
+
+        elif tutor_key not in tutors:
+            tutors[tutor_key] = form_tutor_data(data_row, len(tutors), tutor_collection)
+            tutor_ix = len(tutors) - 1
 
         else:
             tutor_ix = tutors[tutor_key]['tutor_sk']
@@ -135,21 +146,63 @@ def parse_all_data(
         school_key = data_row['school_name']
         if school_key not in schools:
             schools[school_key] = form_school_data(data_row, len(schools))
-            school_ix = len(schools)
+            school_ix = len(schools) - 1
 
         else:
             school_ix = schools[school_key]['school_sk']
 
+        # Studento raktas students dictionary
+        student_key = (
+            data_row['student_first_name'], 
+            data_row['student_last_name']
+        )
+        if student_key[0] is None:
+            if student_key in students: 
+                student_ix = students[student_key]['student_sk']
+            else:
+                students[student_key] = {
+                    'student_sk': len(students),
+                    'first_name': '',
+                    'last_name': '',
+                    'class': 0,
+                    'school_fk': None,
+                    'valid_from': None,
+                    'valid_to': None,
+                    'date_of_birth': None
+                }
+                student_ix = len(students) - 1
+
+        elif student_key not in students:
+            students[student_key] = form_student_data(
+                data_row, 
+                len(students), 
+                student_collection,
+                school_ix
+            )
+            student_ix = len(students) - 1
+
+        else:
+            student_ix = students[student_key]['student_sk']
 
         # Iterate over subjects since one tutor can teach multiple subjects
         # If there are no subjects - subject_ix is None
         if data_row['subjects'] is None:
+            if data_row['subjects'] in subjects:
+                subject_ix = subjects[data_row['subjects']]['subject_sk']
+            else:
+                subjects[None] = {
+                    'subject_sk': len(subjects),
+                    'name': ''
+                }
+                subject_ix = len(subjects) - 1
+
             fact_table_rows.append((
                 student_ix,
                 tutor_ix,
                 school_ix,
-                None,
+                subject_ix,
                 0,
+                None,
                 None
             ))
 
@@ -164,7 +217,7 @@ def parse_all_data(
                         'subject_sk': len(subjects),
                         'name': subject
                     }
-                    subject_ix = len(subjects)
+                    subject_ix = len(subjects) - 1
 
                 fact_table_rows.append((
                     student_ix,
@@ -172,6 +225,7 @@ def parse_all_data(
                     school_ix,
                     subject_ix,
                     0,
+                    None,
                     None
                 ))
 
@@ -184,6 +238,91 @@ def parse_all_data(
     )
 
 
+def get_total_lessons(
+    student_data: dict,
+    tutor_data: dict,
+    lesson_collection
+):
+    lesson_collection
+    pass
+
+
+def get_avg_rating(
+    student_data,
+    tutor_data,
+    review_collection
+):
+    avg_rating_aggregation = review_collection.aggregate([
+        # Surandam mokinio rasytus atsiliepimus korepetitoriui
+        {
+            "$match":{
+                "student.first_name": student_data['first_name'],
+                "student.last_name": student_data['last_name'],
+                "tutor.first_name": tutor_data['first_name'],
+                "tutor.last_name": tutor_data['last_name'],
+                "for_tutor": True
+            }
+        },
+
+        # Apskaiciuojame vidurki
+        {
+            "$group": {
+                "_id": None,
+                "average_rating": {
+                    "$avg": "$rating"
+                }
+            }
+        }
+    ])
+
+    try:
+        agg_doc = next(avg_rating_aggregation)
+        return agg_doc['average_rating']
+
+    except StopIteration:
+        return None  # jei nėra įvertintų atsiliepimų
+
+
+def fill_dw_from_zero(
+    dw_client,
+    neo4j_driver,
+    mongo_driver
+):
+    # Get all students, their schools and tutors
+    data = get_students_schools_neo4j(neo4j_driver)
+    student_collection = mongo_driver['student']
+    tutor_collection = mongo_driver['tutor']
+    review_collection = mongo_driver['review']
+    lesson_collection = mongo_driver['lesson']
+
+    # Form the fact and dimension tables
+    fact_table_rows, students, tutors, schools, subjects = parse_all_data(
+        data, student_collection, tutor_collection
+    )
+
+    f_student_tutor_statistcs = get_fact_table(
+        fact_table_rows,
+        columns=['student_fk', 'tutor_fk', 'school_fk', 'subject_fk', 'total_lessons', 'rating', 'stopped_lessons']
+    )
+    d_student = get_dimension_table(students)
+    d_tutor = get_dimension_table(tutors)
+    d_school = get_dimension_table(schools)
+    d_subjects = get_dimension_table(subjects)
+
+    # Get the number of lessons and the rating
+    ratings = []
+    for _, data_row in f_student_tutor_statistcs.iterrows():
+        student_data = d_student.iloc[data_row['student_fk'], :]
+        tutor_data = d_tutor.iloc[data_row['tutor_fk'], :]
+        ratings.append( get_avg_rating(
+            student_data,
+            tutor_data,
+            review_collection
+        ) )
+
+    print(ratings)
+
+
 if __name__ == '__main__':
     client = clickhouse_connect.get_client(
         host=HOST,
@@ -194,10 +333,7 @@ if __name__ == '__main__':
 
     # print("Result:", client.query("SELECT 1").result_set[0][0])
     neo4j_driver = get_neo4j_driver()
-    data = get_students_schools_neo4j(neo4j_driver)
-
     mongo_driver = get_db()
-    student_collection = mongo_driver['student']
 
-    for row in parse_all_data(data, student_collection):
-        print(row)
+    fill_dw_from_zero(client, neo4j_driver, mongo_driver)
+
