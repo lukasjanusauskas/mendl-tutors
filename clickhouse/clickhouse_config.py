@@ -1,3 +1,4 @@
 USERNAME="default"
-PASSWORD="_GF5Byj4at8jh"
-HOST='tmsefb7t7r.eu-central-1.aws.clickhouse.cloud'
+PASSWORD="WMvmrPBC_OZb1"
+SERVICE_ID="c5a33859-0e24-4a3b-8434-36de9b2f8098"
+HOST='y3l1obuwcs.germanywestcentral.azure.clickhouse.cloud'

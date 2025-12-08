@@ -325,18 +325,18 @@ def fill_dw_data_in_clickhouse(
 
     # Save fact table
     dw_client.insert_df(
-        'f_student_tutor_statistics',
+        'f_student_tutor_stats',
         f_student_tutor_statistcs
     )
 
     # Save dimension tables
     d_tutor['date_of_birth'] = pd.to_datetime( d_tutor['date_of_birth'], errors='coerce')
-    dw_client.insert_df('d_tutor', d_tutor)
-    dw_client.insert_df('d_subject', d_subjects)
-    dw_client.insert_df('d_school', d_school)
+    dw_client.insert_df('d_tutors', d_tutor)
+    dw_client.insert_df('d_subjects', d_subjects)
+    dw_client.insert_df('d_schools', d_school)
 
     d_student['date_of_birth'] = pd.to_datetime( d_student['date_of_birth'], errors='coerce')
-    dw_client.insert_df('d_student', d_student)
+    dw_client.insert_df('d_students', d_student)
 
 
 def fill_dw_from_zero(
