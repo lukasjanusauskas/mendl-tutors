@@ -195,3 +195,55 @@ def list_reviews_student(
                 (review_doc['_id'], parsed_review) )
 
     return recieved_reviews, written_reviews
+
+def list_reviews_student_tutor(
+    review_collection,
+    student_id: str,
+    tutor_id: str,
+    filter_revoked: bool = True
+) -> list:
+
+    reviews = []
+
+    query = {
+        'for_tutor': True,
+        'student.student_id': ObjectId(student_id),
+        'tutor.tutor_id': ObjectId(tutor_id)
+    }
+
+    for review_doc in review_collection.find(query):
+        if 'type' in review_doc:
+            if review_doc['type'] == 'REVOKED' and filter_revoked:
+                continue
+
+        parsed_review = parse_review(review_doc, filter_revoked)
+        reviews.append( (review_doc['_id'], parsed_review) )
+
+    return reviews
+
+def avg_rating_student_tutor(
+    review_collection,
+    student_id: str,
+    tutor_id: str
+) -> float:
+
+    ratings = []
+
+    query = {
+        'for_tutor': True,
+        'student.student_id': ObjectId(student_id),
+        'tutor.tutor_id': ObjectId(tutor_id),
+        'rating': { '$exists': True }
+    }
+
+    for review_doc in review_collection.find(query):
+        if 'type' in review_doc:
+            if review_doc['type'] == 'REVOKED':
+                continue
+
+        ratings.append( review_doc['rating'] )
+
+    if len(ratings) == 0:
+        return 0.0
+
+    return sum(ratings) / len(ratings)

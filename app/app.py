@@ -95,7 +95,7 @@ from api.neo4j import (
     create_student,
     set_student_school,
     set_student_tutor,
-    create_tutor
+    # create_tutor
 )
 
 from redis_api.redis_client import get_redis
@@ -109,10 +109,16 @@ from cassandra.util import uuid_from_time
 from neo4j import GraphDatabase
 
 
-from api.clickhouse_api import (get_clickhouse_client, add_tutor_clickhouse,
-                                add_student_clickhouse, delete_student_clickhouse,
-                                delete_tutor_clickhouse, f_student_tutor_stats_add,
-                                update_studied_with_tutor_to)
+from api.clickhouse_api import (
+    get_clickhouse_client,
+    add_tutor_clickhouse,
+    add_student_clickhouse,
+    delete_student_clickhouse,
+    delete_tutor_clickhouse,
+    f_student_tutor_stats_add,
+    update_studied_with_tutor_to,
+)
+
 client_clickhouse = get_clickhouse_client()
 
 

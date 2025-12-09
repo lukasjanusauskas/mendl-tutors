@@ -1,6 +1,7 @@
 import clickhouse_connect
 import pandas as pd
 from clickhouse.clickhouse_config import USERNAME, PASSWORD, HOST
+from api.reviews import avg_rating_student_tutor
 
 
 def get_clickhouse_client():
@@ -233,8 +234,6 @@ def update_studied_with_tutor_to(client, student_id, tutor_id, db):
     if tutor_fk is None:
         raise ValueError(f"Korepetitorius su id {tutor_id} ClickHouse nerastas.")
 
-
-
     # Sukuriame sąlygą WHERE
     conditions = [f"student_fk = {student_fk}", f"tutor_fk = {tutor_fk}"]
     where_clause = " AND ".join(conditions)
@@ -242,6 +241,24 @@ def update_studied_with_tutor_to(client, student_id, tutor_id, db):
     # Atnaujiname studied_with_tutor_to į dabartinę datą
     client.command(
         f"ALTER TABLE f_student_tutor_stats UPDATE studied_with_tutor_to = now() WHERE {where_clause}"
+    )
+
+    return True
+
+def update_student_tutor_rating(clickhouse_client, student_id, tutor_id, mongo_db, review_collection):
+
+    avg_rating = avg_rating_student_tutor(
+        review_collection,
+        student_id,
+        tutor_id
+    )
+
+    student_fk = get_student_fk_clickhouse(clickhouse_client, student_id, mongo_db)
+
+    tutor_fk = get_tutor_fk_clickhouse(clickhouse_client, tutor_id, mongo_db)
+
+    clickhouse_client.command(
+        f"ALTER TABLE f_student_tutor_stats UPDATE rating = {round(avg_rating, 2)} WHERE student_fk = {student_fk} AND tutor_fk = {tutor_fk}"
     )
 
     return True
@@ -270,3 +287,20 @@ if __name__ == "__main__":
 
     # remove_tutor(client, tutor_id)
     """
+    from pymongo import MongoClient
+    import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    clickhouse_client = get_clickhouse_client()
+    mongo_client = MongoClient(os.getenv('MONGO_URI'))
+    mongo_db = mongo_client['mendel-tutor']
+
+    update_student_tutor_rating(
+        clickhouse_client=clickhouse_client,
+        student_id="68e820f346cf624b879fc7dc",
+        tutor_id="68e3bec9ebc0938f8d678529",
+        mongo_db=mongo_db,
+        review_collection=mongo_db['review']
+    )
