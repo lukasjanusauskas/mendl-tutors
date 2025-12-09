@@ -2,13 +2,14 @@ from pymongo.results import InsertOneResult
 from bson import ObjectId
 from api.utils import serialize_doc
 from datetime import timedelta, datetime
+from dateutil.relativedelta import relativedelta
 
 
 def create_review(
-    review_collection,
-    tutor_collection,
-    student_collection,
-    review_info: dict
+        review_collection,
+        tutor_collection,
+        student_collection,
+        review_info: dict
 ) -> InsertOneResult:
     review = {}
 
@@ -27,13 +28,13 @@ def create_review(
             review[field] = review_info[field]
 
     # Patikrinti, ar tutor egiztuoja
-    tutor = tutor_collection.find_one({'_id': ObjectId( review_info['tutor_id'] )})
+    tutor = tutor_collection.find_one({'_id': ObjectId(review_info['tutor_id'])})
     if not tutor:
         raise ValueError('Tokio korepetitoriaus nera')
 
     # Patikrinti, ar tutor turi toki mokini
-    student_ids_tutor = [ stud_sub_dict['student']['student_id']
-        for stud_sub_dict in tutor['students_subjects']]
+    student_ids_tutor = [stud_sub_dict['student']['student_id']
+                         for stud_sub_dict in tutor['students_subjects']]
 
     print(student_ids_tutor)
 
@@ -47,7 +48,7 @@ def create_review(
         'last_name': tutor['last_name']
     }
 
-    student = student_collection.find_one({'_id': ObjectId( review['student_id'] )})
+    student = student_collection.find_one({'_id': ObjectId(review['student_id'])})
     review['student'] = {
         'student_id': student['_id'],
         'first_name': student['first_name'],
@@ -62,24 +63,22 @@ def create_review(
 
 
 def revoke_review(
-    review_collection,
-    review_id: str
+        review_collection,
+        review_id: str
 ) -> dict:
-
     if not review_collection.find_one({'_id': ObjectId(review_id)}):
         raise ValueError('Tokio review nera')
 
     return review_collection.find_one_and_update(
-        {'_id': ObjectId( review_id )},
+        {'_id': ObjectId(review_id)},
         {'$set': {'type': 'REVOKED'}}
     )
 
 
 def get_single_review(
-    review_collection,
-    review_id: str
+        review_collection,
+        review_id: str
 ) -> dict:
-    
     review = review_collection.find_one({'_id': ObjectId(review_id)})
 
     if not review:
@@ -93,7 +92,7 @@ def get_single_review(
     else:
         first_name = review['student']['first_name']
         last_name = review['student']['last_name']
-        
+
     output['Atsiliepimo autorius'] = f"{first_name} {last_name}"
 
     output['Atsiliepimas'] = review['review_text']
@@ -114,7 +113,7 @@ def parse_review(review_doc: dict, filter_revoked: bool) -> dict:
     else:
         first_name = review_doc['tutor']['first_name']
         last_name = review_doc['tutor']['last_name']
-        
+
     output['Atsiliepimo autorius'] = f"{first_name} {last_name}"
     output['Atsiliepimas'] = review_doc['review_text']
     if 'rating' in review_doc:
@@ -136,73 +135,68 @@ def list_reviews_tutor(
     recieved_reviews = []
     written_reviews = []
 
-    year = datetime.now().year
-    month = datetime.now().month
+    now = datetime.now()
+    year = now.year
+    month = now.month
+
+    start_date = datetime(year, month, 1)
+    end_date = start_date + relativedelta(months=1)  # saugus kitam mėnesiui
 
     query = {
         'tutor.tutor_id': ObjectId(tutor_id),
-        "time": { "$gte": datetime(year, month, 1) },
-        "time": { "$lt": datetime(year, month+1, 1) }
+        "time": { "$gte": start_date, "$lt": end_date }
     }
 
     for review_doc in review_collection.find(query):
-        if 'type' in review_doc:
-            if review_doc['type'] == 'REVOKED' and filter_revoked:
-                continue
+        if 'type' in review_doc and review_doc['type'] == 'REVOKED' and filter_revoked:
+            continue
 
         parsed_review = parse_review(review_doc, filter_revoked)
 
         if review_doc['for_tutor']:
-            recieved_reviews.append( 
-                (review_doc['_id'], parsed_review) )
+            recieved_reviews.append((review_doc['_id'], parsed_review))
         else:
-            written_reviews.append(
-                (review_doc['_id'], parsed_review) )
+            written_reviews.append((review_doc['_id'], parsed_review))
 
     return recieved_reviews, written_reviews
 
 
 def list_reviews_student(
-    review_collection,
-    student_id: str,
-    filter_revoked: bool = True
-) -> tuple[list,list]:
-
+        review_collection,
+        student_id: str,
+        filter_revoked: bool = True
+) -> tuple[list, list]:
     recieved_reviews = []
     written_reviews = []
 
-    year = datetime.now().year
-    month = datetime.now().month
+    now = datetime.now()
+    start_date = datetime(now.year, now.month, 1)
+    end_date = start_date + relativedelta(months=1)  # kitam mėnesiui – saugu gruodį
 
     query = {
         'student.student_id': ObjectId(student_id),
-        "time": { "$gte": datetime(year, month, 1) },
-        "time": { "$lt": datetime(year, month+1, 1) }
+        "time": {"$gte": start_date, "$lt": end_date}
     }
 
     for review_doc in review_collection.find(query):
-        if 'type' in review_doc:
-            if review_doc['type'] == 'REVOKED' and filter_revoked:
-                continue
+        if 'type' in review_doc and review_doc['type'] == 'REVOKED' and filter_revoked:
+            continue
 
         parsed_review = parse_review(review_doc, filter_revoked)
 
-        if not review_doc['for_tutor']:
-            recieved_reviews.append( 
-                (review_doc['_id'], parsed_review) )
+        if not review_doc.get('for_tutor', False):
+            recieved_reviews.append((review_doc['_id'], parsed_review))
         else:
-            written_reviews.append(
-                (review_doc['_id'], parsed_review) )
+            written_reviews.append((review_doc['_id'], parsed_review))
 
     return recieved_reviews, written_reviews
 
 def list_reviews_student_tutor(
-    review_collection,
-    student_id: str,
-    tutor_id: str,
-    filter_revoked: bool = True
+        review_collection,
+        student_id: str,
+        tutor_id: str,
+        filter_revoked: bool = True
 ) -> list:
-
     reviews = []
 
     query = {
@@ -217,23 +211,23 @@ def list_reviews_student_tutor(
                 continue
 
         parsed_review = parse_review(review_doc, filter_revoked)
-        reviews.append( (review_doc['_id'], parsed_review) )
+        reviews.append((review_doc['_id'], parsed_review))
 
     return reviews
 
-def avg_rating_student_tutor(
-    review_collection,
-    student_id: str,
-    tutor_id: str
-) -> float:
 
+def avg_rating_student_tutor(
+        review_collection,
+        student_id: str,
+        tutor_id: str
+) -> float:
     ratings = []
 
     query = {
         'for_tutor': True,
         'student.student_id': ObjectId(student_id),
         'tutor.tutor_id': ObjectId(tutor_id),
-        'rating': { '$exists': True }
+        'rating': {'$exists': True}
     }
 
     for review_doc in review_collection.find(query):
@@ -241,7 +235,7 @@ def avg_rating_student_tutor(
             if review_doc['type'] == 'REVOKED':
                 continue
 
-        ratings.append( review_doc['rating'] )
+        ratings.append(review_doc['rating'])
 
     if len(ratings) == 0:
         return 0.0

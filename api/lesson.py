@@ -317,7 +317,6 @@ def list_lessons_tutor_month(
 ) -> list[dict]:
     """ List tutor's lessons. """
 
-    # Patikrinti, ar toks korepetitoriaus id yra
     if not tutor_collection.find_one({'_id': ObjectId(tutor_id)}):
         raise ValueError('Specified tutor could not be found')
 
@@ -327,38 +326,41 @@ def list_lessons_tutor_month(
     except ValueError:
         raise ValueError('Could not convert year or month (arguments 2 and 3) to int')
 
-    # Grazinti informacija
+    # Nustatom pabaigos datą
+    if month == 12:
+        next_month = datetime(year + 1, 1, 1)
+    else:
+        next_month = datetime(year, month + 1, 1)
+
     lessons = []
 
     query = {
         'tutor.tutor_id': ObjectId(tutor_id),
         'time': {
             "$gte": datetime(year, month, 1),
-            "$lt": datetime(year, month+1, 1)
+            "$lt": next_month
         }
     }
+
     for lesson_doc in lesson_collection.find(query):
         students = [
             {'first_name': stud['first_name'], 'last_name': stud['last_name']}
             for stud in lesson_doc['students']
         ]
 
-        if 'type' in lesson_doc:
-            if lesson_doc['type'] != 'ACTIVE':
-                continue
+        if 'type' in lesson_doc and lesson_doc['type'] != 'ACTIVE':
+            continue
 
         lessons.append({
             '_id': str(lesson_doc['_id']),
             'time': lesson_doc['time'].strftime('%Y-%m-%d %H:%M'),
             'students': students,
-            'link': lesson_doc['link'],
-            "subject": lesson_doc['subject'],
-            'class': lesson_doc['class']
+            'link': lesson_doc.get('link'),
+            'subject': lesson_doc.get('subject'),
+            'class': lesson_doc.get('class')
         })
 
-    lesson_list = sorted(lessons,
-        key=lambda x: datetime.strptime(x['time'], '%Y-%m-%d %H:%M'))
-
+    lesson_list = sorted(lessons, key=lambda x: datetime.strptime(x['time'], '%Y-%m-%d %H:%M'))
     return lesson_list
 
 

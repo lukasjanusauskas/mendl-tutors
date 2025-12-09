@@ -117,6 +117,8 @@ from api.clickhouse_api import (
     delete_tutor_clickhouse,
     f_student_tutor_stats_add,
     update_studied_with_tutor_to,
+    update_student_tutor_lesson_count,
+    update_student_tutor_rating
 )
 
 client_clickhouse = get_clickhouse_client()
@@ -894,8 +896,7 @@ def add_tutor():
                 })
 
             # ---- DB OPERACIJOS ----
-            create_new_tutor(db.tutor, tutor_info)  # Mongo/SQL
-            #create_tutor(driver, tutor_info['first_name'], tutor_info['last_name'], tutor_info['subjects'])  # Neo4j
+            create_new_tutor(db.tutor, tutor_info)
             try:
                 add_tutor_clickhouse(client_clickhouse, tutor_info["first_name"], tutor_info["last_name"],
                                      tutor_info["date_of_birth"])
@@ -919,8 +920,9 @@ def add_new_review_tutor(tutor_id):
     """
     Leidžia dėstytojui sukurti atsiliepimą savo mokiniui.
     Pridedant naują atsiliepimą:
-    įrašome jį į MongoDB
-    aktyviai išvalome Redis kešą (kad kito kvietimo metu duomenys būtų atnaujinti)
+        - įrašome jį į MongoDB
+        - aktyviai išvalome Redis kešą
+        - atnaujiname ClickHouse lentelėje f_student_tutor_stats mokinio vertinimą
     """
 
     # Gauname korepetitoriaus informaciją
@@ -945,6 +947,7 @@ def add_new_review_tutor(tutor_id):
     if request.method == 'POST':
         student_id = request.form.get('student_id')
         review_text = request.form.get('review_text')
+        rating = request.form.get('rating')  # jeigu turi rating lauke formoje
 
         # Išsaugome atsiliepimą MongoDB duomenų bazėje
         create_review(
@@ -953,11 +956,25 @@ def add_new_review_tutor(tutor_id):
                 'tutor_id': tutor_id,
                 'student_id': student_id,
                 'for_tutor': False,
-                'review_text': review_text
+                'review_text': review_text,
+                'rating': int(rating) if rating else None
             }
         )
 
+        # Aktyviai išvalome Redis kešą
         invalidate_student_review_cache(student_id)
+
+        # ATNAUJINAME ClickHouse lentelėje mokinio vertinimą
+        try:
+            update_student_tutor_rating(
+                client_clickhouse,
+                student_id,
+                tutor_id,
+                db,
+                db['review']
+            )
+        except Exception as e:
+            flash(f'Nepavyko atnaujinti ClickHouse vertinimo: {e}', 'warning')
 
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
         return redirect(url_for('view_tutor', tutor_id=tutor_id))
@@ -973,6 +990,7 @@ def add_new_review_student(student_id):
     Įrašius atsiliepimą:
         - įrašome į MongoDB
         - aktyviai išvalome Redis kešą dėstytojui
+        - atnaujiname ClickHouse lentelėje f_student_tutor_stats studento vertinimą
     """
 
     # Gauname mokinio informaciją
@@ -1022,6 +1040,18 @@ def add_new_review_student(student_id):
         # Aktyviai išvalome Redis kešą – dėstytojo peržiūrų skaičius gali pasikeisti
         invalidate_tutor_review_cache(tutor_id)
         invalidate_tutor_rating_cache(tutor_id)
+
+        # ATNAUJINAME ClickHouse lentelėje studento vertinimą
+        try:
+            update_student_tutor_rating(
+                client_clickhouse,
+                student_id,
+                tutor_id,
+                db,
+                db['review']
+            )
+        except Exception as e:
+            flash(f'Nepavyko atnaujinti ClickHouse vertinimo: {e}', 'warning')
 
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
         return redirect("/")
@@ -1118,9 +1148,9 @@ def add_student_to_tutor(tutor_id):
         if request.method == "POST":
             student_id = request.form.get("student_id")
             subject = request.form.get("subject")
-            rating = request.form.get("rating")  # opcionalu
-            lessons = request.form.get("lessons")  # opcionalu
-            date = request.form.get("date")  # opcionalu
+            rating = request.form.get("rating")
+            lessons = request.form.get("lessons")
+            date = request.form.get("date")
 
             try:
                 try:
@@ -1194,13 +1224,13 @@ def remove_student_from_tutor_route(tutor_id, student_id):
 
     try:
         try:
-            # 1️⃣ Pašaliname mokinį MongoDB
+            # Pašaliname mokinį MongoDB
             result = remove_student_from_tutor(db.tutor, tutor_id, student_id)
 
             if result["removed"]:
                 flash("Mokinys sėkmingai pašalintas!", "success")
 
-                # 2️⃣ Gauname studentą ir visus priskirtus dalykus (subjects)
+                # Gauname studentą ir visus priskirtus dalykus (subjects)
                 student = get_student_by_id(db.student, student_id)
 
                 # Patikrink, kad gautume visą dokumentą
@@ -1269,15 +1299,31 @@ def tutor_revoke_review(tutor_id, review_id):
         review = db['review'].find_one({"_id": ObjectId(review_id)})
         student_oid = review.get("student", {}).get("student_id")
         student_id_str = str(student_oid)
+
+        # Atšaukiame kešą
         invalidate_student_review_cache(student_id_str)
+
+        # Atšaukiame atsiliepimą MongoDB
         revoke_review(db['review'], review_id)
+
+        # ATNAUJINAME ClickHouse vertinimą
+        try:
+            update_student_tutor_rating(
+                client_clickhouse,
+                student_id_str,
+                tutor_id,
+                db,
+                db['review']
+            )
+        except Exception as e:
+            flash(f'Nepavyko atnaujinti ClickHouse vertinimo: {e}', 'warning')
 
     except Exception as err:
         flash(str(err), 'danger')
 
     flash('Sėkmingai atsiimtas atsiliepimas', 'success')
-
     return redirect(url_for('show_reviews_tutor', tutor_id=tutor_id, tutor=tutor))
+
 
 
 @app.route('/student/revoke_review/<student_id>/<review_id>', methods=['GET'])
@@ -1290,14 +1336,30 @@ def student_revoke_review(student_id, review_id):
         review = db['review'].find_one({"_id": ObjectId(review_id)})
         tutor_oid = review.get("tutor", {}).get("tutor_id")
         tutor_id_str = str(tutor_oid)
+
+        # Išvalome Redis kešus
         invalidate_tutor_review_cache(tutor_id_str)
         invalidate_tutor_rating_cache(tutor_id_str)
+
+        # Atšaukiame atsiliepimą MongoDB
         revoke_review(db['review'], review_id)
+
+        # ATNAUJINAME ClickHouse lentelėje studento vertinimą
+        try:
+            update_student_tutor_rating(
+                client_clickhouse,
+                student_id,
+                tutor_id_str,
+                db,
+                db['review']
+            )
+        except Exception as e:
+            flash(f'Nepavyko atnaujinti ClickHouse vertinimo: {e}', 'warning')
+
     except Exception as err:
         flash(str(err), 'danger')
 
     flash('Sėkmingai atsiimtas atsiliepimas', 'success')
-
     return redirect(url_for('show_reviews_student', student_id=student_id))
 
 
@@ -1408,13 +1470,11 @@ def create_new_lesson(tutor_id):
         return redirect(url_for('index'))
 
     if request.method == "POST":
-        # Get request data
         date_of_lesson = request.form.get('date')
         hour = request.form.get('hour')
         student_ids = request.form.getlist('student_ids[]')
         subject = request.form.get('subject')
 
-        # Post the lesson
         try:
             create_lesson(
                 db['lesson'],
@@ -1428,21 +1488,21 @@ def create_new_lesson(tutor_id):
                 }
             )
 
+            # CLICKHOUSE UPDATE
+            update_student_tutor_lesson_count(client_clickhouse, tutor_id, student_ids, db, 1)
+
         except Exception as e:
             traceback.print_exc()
             flash(f"Nepavyko sukurti pamokos: {e}", "alert")
             return redirect(url_for('create_new_lesson', tutor_id=tutor_id, tutor=tutor))
 
-        flash(f"Pavyko sukurti pamoką", "success")
+        flash("Pamoka sukurta ir statistika atnaujinta", "success")
         invalidate_tutor_pay_cache(tutor_id)
         invalidate_student_pay_cache(student_ids)
         return redirect(url_for('manage_lessons', tutor_id=tutor_id, tutor=tutor))
 
     else:
-        # Get list of students
         students = get_tutor_students(db['tutor'], tutor_id=tutor_id)
-
-        # Show template
         return render_template('create_lesson.html', tutor_id=tutor_id, students=students, tutor=tutor)
 
 
@@ -1460,6 +1520,10 @@ def delete_lesson(lesson_id, tutor_id):
             return redirect(url_for("manage_lessons", tutor_id=tutor_id))
 
         student_ids = [str(s["student_id"]) for s in lesson.get("students", [])]
+
+        # 🔥 CLICKHOUSE - pamoka panaikinta → total_lessons -1
+        if student_ids:
+            update_student_tutor_lesson_count(client_clickhouse, tutor_id, student_ids, db, -1)
 
         # Triname pamoką
         func_delete_lesson(db['lesson'], lesson_id)

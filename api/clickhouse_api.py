@@ -124,7 +124,7 @@ def get_student_fk_clickhouse(client, student_id, db):
     date_of_birth = student.get("date_of_birth")
     class_num = student.get("class")
 
-    # Surandame student_sk ClickHouse pagal first_name, last_name, gimimo datą ir klasę
+    # Surandame student_sk ClickHouse pagal first_name, last_name
     query = f"SELECT student_sk FROM d_students WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
     if date_of_birth:
         dob_str = pd.to_datetime(date_of_birth).date()
@@ -153,7 +153,7 @@ def get_tutor_fk_clickhouse(client, tutor_id, db):
     last_name = tutor.get("last_name")
     date_of_birth = tutor.get("date_of_birth")
 
-    # Surandame tutor_sk ClickHouse pagal first_name, last_name ir gimimo datą
+    # Surandame tutor_sk ClickHouse pagal first_name
     query = f"SELECT tutor_sk FROM d_tutors WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
     if date_of_birth:
         dob_str = pd.to_datetime(date_of_birth).date()
@@ -183,7 +183,7 @@ def get_subject_sk_clickhouse(client, subject_name):
 def f_student_tutor_stats_add(client, student_id, tutor_id, subject_name, db, rating=None, date=None, lessons=None):
     """
     Prideda įrašą į ClickHouse lentelę f_student_tutor_stats su raktiniais student, tutor ir subject.
-    score ir date yra opcionalūs papildomi laukai.
+    rating ir date yra opcionalūs papildomi laukai.
     """
 
     # Gauname student_fk
@@ -208,7 +208,7 @@ def f_student_tutor_stats_add(client, student_id, tutor_id, subject_name, db, ra
             "tutor_fk": [tutor_fk],
             "subject_fk": [subject_sk],
             "total_lessons": [lessons if lessons is not None else 0],
-            'rating' : [rating if rating is not None else 0],
+            'rating' : [rating],
             "studied_with_tutor_from": [pd.to_datetime(date) if date else pd.Timestamp.now()],
             "studied_with_tutor_to": [None]
         }
@@ -262,6 +262,40 @@ def update_student_tutor_rating(clickhouse_client, student_id, tutor_id, mongo_d
     )
 
     return True
+
+def update_student_tutor_lesson_count(ch, tutor_id : str, student_ids: list[str], db, lesson):
+    tutor_fk = get_tutor_fk_clickhouse(ch, tutor_id, db)
+    if tutor_fk is None:
+        raise ValueError(f"Tutor ID {tutor_id} nerastas d_tutors lentelėje")
+
+    for student_id in student_ids:
+
+        student_fk = get_student_fk_clickhouse(ch, student_id, db)
+        if student_fk is None:
+            print(f"⚠ Student ID {student_id} nerastas – praleidžiam")
+            continue
+
+        existing = ch.query(f"""
+            SELECT total_lessons FROM f_student_tutor_stats
+            WHERE student_fk = {student_fk} AND tutor_fk = {tutor_fk}
+        """).result_rows
+
+        if existing:
+            current = existing[0][0] + lesson
+            ch.query(f"""
+                ALTER TABLE f_student_tutor_stats
+                UPDATE total_lessons = {current}
+                WHERE student_fk = {student_fk} AND tutor_fk = {tutor_fk}
+            """)
+            print(f"🔄 Student {student_fk} + Tutor {tutor_fk} → total_lessons {current}")
+        else:
+            ch.insert(
+                "f_student_tutor_stats",
+                [[student_fk, tutor_fk, 1]],
+                column_names=["student_fk", "tutor_fk", "total_lessons"]
+            )
+            print(f"Sukurtas naujas įrašas Student {student_fk} + Tutor {tutor_fk}")
+
 
 
 if __name__ == "__main__":
