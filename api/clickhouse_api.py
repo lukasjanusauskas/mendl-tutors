@@ -36,6 +36,31 @@ def remove_student(client, student_sk):
     client.command(f"ALTER TABLE d_students DELETE WHERE student_sk = {student_sk}")
 
 
+def add_tutor(client, first_name, last_name, date_of_birth):
+    """Prideda korepetitorių į clickhouse"""
+
+    result = client.query("SELECT MAX(tutor_sk) FROM d_tutors")
+    next_tutor_sk = result.result_set[0][0] + 1
+
+    new_tutor = pd.DataFrame(
+        {
+            "tutor_sk": [next_tutor_sk],
+            "first_name": [first_name],
+            "last_name": [last_name],
+            "date_of_birth": [pd.to_datetime(date_of_birth)],
+        }
+    )
+
+    client.insert_df("d_tutors", new_tutor)
+    return next_tutor_sk
+
+
+def remove_tutor(client, tutor_sk):
+    """Ištrina korepetitorių iš clickhouse"""
+
+    client.command(f"ALTER TABLE d_tutors DELETE WHERE tutor_sk = {tutor_sk}")
+
+
 if __name__ == "__main__":
     client = get_clickhouse_client()
 
@@ -49,3 +74,13 @@ if __name__ == "__main__":
     )
 
     # remove_student(client, student_id)
+
+    tutor_id = add_tutor(
+        client=client,
+        first_name="korepetitoriusnaujas",
+        last_name="korepetitorius",
+        date_of_birth="1980-06-07",
+    )
+
+    # remove_tutor(client, tutor_id)
+    
