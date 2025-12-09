@@ -109,7 +109,10 @@ from cassandra.util import uuid_from_time
 from neo4j import GraphDatabase
 
 
-from api.clickhouse_api import get_clickhouse_client, add_tutor_clickhouse, add_student_clickhouse, delete_student_clickhouse, delete_tutor_clickhouse
+from api.clickhouse_api import (get_clickhouse_client, add_tutor_clickhouse,
+                                add_student_clickhouse, delete_student_clickhouse,
+                                delete_tutor_clickhouse, f_student_tutor_stats_add,
+                                update_studied_with_tutor_to)
 client_clickhouse = get_clickhouse_client()
 
 
@@ -1109,9 +1112,13 @@ def add_student_to_tutor(tutor_id):
         if request.method == "POST":
             student_id = request.form.get("student_id")
             subject = request.form.get("subject")
+            rating = request.form.get("rating")  # opcionalu
+            lessons = request.form.get("lessons")  # opcionalu
+            date = request.form.get("date")  # opcionalu
 
             try:
                 try:
+                    # Priskiriame mokinį MongoDB
                     result = assign_student_to_tutor(
                         db.tutor,
                         db.student,
@@ -1119,12 +1126,36 @@ def add_student_to_tutor(tutor_id):
                         student_id,
                         subject
                     )
-                    
+
                     if result.modified_count > 0:
                         flash("Mokinys sėkmingai priskirtas!", "success")
 
+                        # Gauname studento duomenis MongoDB
                         student = get_student_by_id(db['student'], student_id)
-                        set_student_tutor(driver, student['first_name'], student['last_name'], tutor['first_name'], tutor['last_name'])
+
+                        # Pridedame į f_student_tutor_stats ClickHouse
+                        try:
+                            f_student_tutor_stats_add(
+                                client_clickhouse,
+                                student_id,
+                                tutor_id,
+                                subject,
+                                db=db,
+                                rating=float(rating) if rating else None,
+                                lessons=int(lessons) if lessons else None,
+                                date=date
+                            )
+                        except Exception as e_ch:
+                            flash(f"Klaida įrašant ClickHouse: {str(e_ch)}", "warning")
+
+                        # Papildoma logika Neo4j
+                        set_student_tutor(
+                            driver,
+                            student['first_name'],
+                            student['last_name'],
+                            tutor['first_name'],
+                            tutor['last_name']
+                        )
 
                         return redirect(url_for("view_tutor", tutor_id=tutor_id))
                     else:
@@ -1138,9 +1169,11 @@ def add_student_to_tutor(tutor_id):
                 flash(f"Klaida: {str(e)}", "danger")
 
         students = get_all_students(db.student)
-        return render_template("add_student_to_tutor.html",
-                               tutor=tutor,
-                               students=students)
+        return render_template(
+            "add_student_to_tutor.html",
+            tutor=tutor,
+            students=students
+        )
 
     except Exception as e:
         flash(f"Klaida: {str(e)}", "danger")
@@ -1155,10 +1188,34 @@ def remove_student_from_tutor_route(tutor_id, student_id):
 
     try:
         try:
+            # 1️⃣ Pašaliname mokinį MongoDB
             result = remove_student_from_tutor(db.tutor, tutor_id, student_id)
 
             if result["removed"]:
                 flash("Mokinys sėkmingai pašalintas!", "success")
+
+                # 2️⃣ Gauname studentą ir visus priskirtus dalykus (subjects)
+                student = get_student_by_id(db.student, student_id)
+
+                # Patikrink, kad gautume visą dokumentą
+                student_doc = db.student.find_one({"_id": ObjectId(student_id)})
+                if not student_doc:
+                    flash("Studentas MongoDB nerastas.", "warning")
+                    student_doc = {}
+
+                tutor = get_tutor_by_id(db.tutor, tutor_id)
+
+                try:
+                    update_studied_with_tutor_to(
+                        client_clickhouse,
+                        student_id,
+                        tutor_id,
+                        db=db
+                    )
+                except Exception as e_ch:
+                    flash(f"Klaida atnaujinant ClickHouse: {str(e_ch)}", "warning")
+
+
             else:
                 flash("Nepavyko pašalinti mokinio.", "danger")
 

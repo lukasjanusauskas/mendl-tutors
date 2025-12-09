@@ -105,6 +105,148 @@ def delete_tutor_clickhouse(client, first_name, last_name, date_of_birth=None):
     return True
 
 
+
+from bson import ObjectId
+
+def get_student_fk_clickhouse(client, student_id, db):
+    """
+    Pagal MongoDB student_id suranda student_fk (student_sk) ClickHouse d_students.
+    Grąžina student_sk, arba None, jei nerasta.
+    """
+    # Gauname studentą iš MongoDB
+    student = db.student.find_one({"_id": ObjectId(student_id)})
+    if not student:
+        return None
+
+    first_name = student.get("first_name")
+    last_name = student.get("last_name")
+    date_of_birth = student.get("date_of_birth")
+    class_num = student.get("class")
+
+    # Surandame student_sk ClickHouse pagal first_name, last_name, gimimo datą ir klasę
+    query = f"SELECT student_sk FROM d_students WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
+    if date_of_birth:
+        dob_str = pd.to_datetime(date_of_birth).date()
+        query += f" AND date_of_birth = '{dob_str}'"
+    if class_num:
+        query += f" AND class = {class_num}"
+
+    result = client.query(query)
+    if not result.result_set or not result.result_set[0]:
+        return None
+
+    return result.result_set[0][0]
+
+
+def get_tutor_fk_clickhouse(client, tutor_id, db):
+    """
+    Pagal MongoDB tutor_id suranda tutor_fk (tutor_sk) ClickHouse d_tutors.
+    Grąžina tutor_sk, arba None, jei nerasta.
+    """
+    # Gauname korepetitorių iš MongoDB
+    tutor = db.tutor.find_one({"_id": ObjectId(tutor_id)})
+    if not tutor:
+        return None
+
+    first_name = tutor.get("first_name")
+    last_name = tutor.get("last_name")
+    date_of_birth = tutor.get("date_of_birth")
+
+    # Surandame tutor_sk ClickHouse pagal first_name, last_name ir gimimo datą
+    query = f"SELECT tutor_sk FROM d_tutors WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
+    if date_of_birth:
+        dob_str = pd.to_datetime(date_of_birth).date()
+        query += f" AND date_of_birth = '{dob_str}'"
+
+    result = client.query(query)
+    if not result.result_set or not result.result_set[0]:
+        return None
+
+    return result.result_set[0][0]
+
+
+def get_subject_sk_clickhouse(client, subject_name):
+    """
+    Pagal subject_name suranda subject_sk iš d_subject lentelės ClickHouse.
+    Grąžina subject_sk arba None, jei nerasta.
+    """
+    query = f"SELECT subject_sk FROM d_subjects WHERE name = '{subject_name}'"
+    result = client.query(query)
+
+    if not result.result_set or not result.result_set[0]:
+        return None
+
+    return result.result_set[0][0]
+
+
+def f_student_tutor_stats_add(client, student_id, tutor_id, subject_name, db, rating=None, date=None, lessons=None):
+    """
+    Prideda įrašą į ClickHouse lentelę f_student_tutor_stats su raktiniais student, tutor ir subject.
+    score ir date yra opcionalūs papildomi laukai.
+    """
+
+    # Gauname student_fk
+    student_fk = get_student_fk_clickhouse(client, student_id, db)
+    if student_fk is None:
+        raise ValueError(f"Studentas su id {student_id} ClickHouse nerastas.")
+
+    # Gauname tutor_fk
+    tutor_fk = get_tutor_fk_clickhouse(client, tutor_id, db)
+    if tutor_fk is None:
+        raise ValueError(f"Korepetitorius su id {tutor_id} ClickHouse nerastas.")
+
+    # Gauname subject_sk
+    subject_sk = get_subject_sk_clickhouse(client, subject_name)
+    if subject_sk is None:
+        raise ValueError(f"Dalykas '{subject_name}' ClickHouse nerastas.")
+
+    # Sukuriame DataFrame naujam įrašui
+    new_record = pd.DataFrame(
+        {
+            "student_fk": [student_fk],
+            "tutor_fk": [tutor_fk],
+            "subject_fk": [subject_sk],
+            "total_lessons": [lessons if lessons is not None else 0],
+            'rating' : [rating if rating is not None else 0],
+            "studied_with_tutor_from": [pd.to_datetime(date) if date else pd.Timestamp.now()],
+            "studied_with_tutor_to": [None]
+        }
+    )
+
+    # Įterpiame į f_student_tutor_stats
+    client.insert_df("f_student_tutor_stats", new_record)
+    return True
+
+def update_studied_with_tutor_to(client, student_id, tutor_id, db):
+    """
+    Atnaujina studied_with_tutor_to į dabartinę datą ClickHouse lentelėje f_student_tutor_stats
+    pagal student_fk, tutor_fk ir opcionaliai subject_fk.
+    """
+
+    # Gauname student_fk
+    student_fk = get_student_fk_clickhouse(client, student_id, db)
+    if student_fk is None:
+        raise ValueError(f"Studentas su id {student_id} ClickHouse nerastas.")
+
+    # Gauname tutor_fk
+    tutor_fk = get_tutor_fk_clickhouse(client, tutor_id, db)
+    if tutor_fk is None:
+        raise ValueError(f"Korepetitorius su id {tutor_id} ClickHouse nerastas.")
+
+
+
+    # Sukuriame sąlygą WHERE
+    conditions = [f"student_fk = {student_fk}", f"tutor_fk = {tutor_fk}"]
+    where_clause = " AND ".join(conditions)
+
+    # Atnaujiname studied_with_tutor_to į dabartinę datą
+    client.command(
+        f"ALTER TABLE f_student_tutor_stats UPDATE studied_with_tutor_to = now() WHERE {where_clause}"
+    )
+
+    return True
+
+
 if __name__ == "__main__":
     client = get_clickhouse_client()
     """
