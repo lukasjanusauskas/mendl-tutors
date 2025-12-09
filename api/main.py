@@ -33,8 +33,7 @@ from lesson import (
     list_lessons_student_week,
     list_lesson_student_month,
     delete_student_from_lesson,
-    change_lesson_price_student,
-    change_lesson_time_student
+    change_lesson_price_student
 )
 from reviews import (
     create_review,

@@ -94,7 +94,8 @@ from api.neo4j import (
     get_pending_friend_requests,
     create_student,
     set_student_school,
-    set_student_tutor
+    set_student_tutor,
+    create_tutor
 )
 
 from redis_api.redis_client import get_redis
@@ -106,6 +107,11 @@ from datetime import datetime
 from uuid import uuid1
 from cassandra.util import uuid_from_time
 from neo4j import GraphDatabase
+
+
+from api.clickhouse_api import get_clickhouse_client, add_tutor_clickhouse, add_student_clickhouse, delete_student_clickhouse, delete_tutor_clickhouse
+client_clickhouse = get_clickhouse_client()
+
 
 load_dotenv()
 
@@ -366,13 +372,20 @@ def add_student():
                 "student_phone_number": request.form.get("student_phone_number"),
                 "student_email": request.form.get("student_email"),
                 "parents_email": request.form.get("parents_email"),
-                "password": request.form["password"]
+                "password": request.form["password"],
+                "school_fk": "A gimnazija"
             }
 
-            data = {k: v for k, v in data.items() if v not in [None, ""]}
+            # pašaliname tuščias reikšmes
+            data = {k: v for k, v in data.items() if v not in (None, "", [])}
 
             try:
+                # įrašymas į pagrindinę DB
                 create_new_student(db.student, data)
+
+                add_student_clickhouse(client_clickhouse, data["first_name"], data["last_name"],
+                                          data["class"], data["school_fk"], data["date_of_birth"])
+
                 flash("Mokinys sėkmingai pridėtas!", "success")
                 return redirect(url_for("students"))
 
@@ -389,16 +402,35 @@ def add_student():
 @app.route("/student/<student_id>/delete", methods=["GET", "POST"])
 def delete_student_ui(student_id):
     try:
+        # Gauname studentą iš MongoDB
+        student = db.student.find_one({"_id": ObjectId(student_id)})
+        if not student:
+            flash("Mokinys nerastas MongoDB.", "warning")
+            return redirect(url_for("students"))
+
+        first_name = student.get("first_name")
+        last_name = student.get("last_name")
+
+        # Ištriname studentą MongoDB
         try:
             result = delete_student(db.student, db.tutor, student_id)
-
             if result["deleted"]:
-                flash("Mokinys sėkmingai ištrintas!", "success")
+                flash(f"Mokinys {first_name} {last_name} sėkmingai ištrintas iš MongoDB!", "success")
             else:
-                flash("Mokinys nerastas.", "warning")
-
+                flash(f"Mokinys {first_name} {last_name} MongoDB nerastas.", "warning")
         except LockError:
-            flash("Šiuo metu mokinys redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
+            flash(f"Mokinys {first_name} {last_name} šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
+
+        # Ištriname studentą iš ClickHouse
+        deleted_ch = delete_student_clickhouse(
+            client_clickhouse,
+            first_name,
+            last_name
+        )
+        if deleted_ch:
+            flash(f"Mokinys {first_name} {last_name} sėkmingai ištrintas iš ClickHouse!", "success")
+        else:
+            flash(f"Mokinys {first_name} {last_name} ClickHouse nerastas.", "warning")
 
     except Exception as e:
         flash(str(e), "danger")
@@ -461,7 +493,8 @@ def sign_up_student():
                 'date_of_birth': request.form['date_of_birth'],
                 'class': class_value,
                 'password': request.form['password'],
-                'parents_phone_numbers': parents_phones_list
+                'parents_phone_numbers': parents_phones_list,
+                'school' : request.form['school']
             }
 
             # Neprivalomi laukai
@@ -480,11 +513,13 @@ def sign_up_student():
 
             # Sukuriame studentą mongo duomenų bazėje
             new_student = create_new_student(db.student, student_info)
+            add_student_clickhouse(client_clickhouse, student_info["first_name"], student_info["last_name"],
+                                   student_info["class"], student_info["school"], student_info["date_of_birth"])
             driver = get_driver()
             # Sukuriame studento neo4j duomenų bazėje
             create_student(driver, student_info['first_name'], student_info['last_name'], student_info['class'])
             # Priskiriam studentą mokyklai
-            set_student_school(driver, student_info['first_name'], student_info['last_name'], request.form['school'])
+            set_student_school(driver, student_info['first_name'], student_info['last_name'], student_info['school'])
             student_id = new_student.inserted_id
 
             # Priskiriam studenta prie pasirinktu korepetitoriu
@@ -590,6 +625,13 @@ def sign_up_tutor():
             session['user_name'] = f"{tutor_info['first_name']} {tutor_info['last_name']}"
             session['logged_in'] = True
 
+            try:
+                add_tutor_clickhouse(client_clickhouse, tutor_info["first_name"], tutor_info["last_name"],
+                                     tutor_info["date_of_birth"])
+            except Exception as e:
+                print("ClickHouse insert error:", e)
+                flash("ClickHouse insert failed: " + str(e), "danger")
+
             flash("Korepetitorius sėkmingai užregistruotas!", "success")
             return redirect(url_for("view_tutor", tutor_id=tutor_id))
 
@@ -687,7 +729,6 @@ def login():
 
     return render_template('login.html')
 
-
 @app.route('/logout')
 def logout():
     if 'user_id' in session:
@@ -774,20 +815,41 @@ def view_tutor(tutor_id):
 @app.route("/tutors/<tutor_id>/delete", methods=["GET", "POST"])
 def remove_tutor(tutor_id):
     try:
+        # Gauname korepetitorių iš MongoDB
+        tutor = db.tutor.find_one({"_id": ObjectId(tutor_id)})
+        if not tutor:
+            flash("Korepetitorius nerastas MongoDB.", "warning")
+            return redirect(url_for("tutors"))
+
+        first_name = tutor.get("first_name")
+        last_name = tutor.get("last_name")
+
+        # Ištriname korepetitorių MongoDB
         try:
             result = delete_tutor(db.tutor, tutor_id)
-
             if result["deleted"]:
-                flash("Korepetitorius sėkmingai ištrintas!", "success")
+                flash(f"Korepetitorius {first_name} {last_name} sėkmingai ištrintas iš MongoDB!", "success")
             else:
-                flash("Korepetitorius nerastas.", "warning")
-
+                flash(f"Korepetitorius {first_name} {last_name} MongoDB nerastas.", "warning")
         except LockError:
-            flash("Šiuo metu korepetitorius redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
+            flash(f"Korepetitorius {first_name} {last_name} šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.", "warning")
+
+        # Ištriname korepetitorių iš ClickHouse
+        # Pagal first_name, last_name
+        query = f"SELECT tutor_sk FROM d_tutors WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
+
+        result_ch = client_clickhouse.query(query)
+        if result_ch.result_set and result_ch.result_set[0]:
+            tutor_sk = result_ch.result_set[0][0]
+            client_clickhouse.command(f"ALTER TABLE d_tutors DELETE WHERE tutor_sk = {tutor_sk}")
+            flash(f"Korepetitorius {first_name} {last_name} sėkmingai ištrintas iš ClickHouse!", "success")
+        else:
+            flash(f"Korepetitorius {first_name} {last_name} ClickHouse nerastas.", "warning")
+
     except Exception as e:
         flash(str(e), "danger")
-    return redirect(url_for("tutors"))
 
+    return redirect(url_for("tutors"))
 
 @app.route("/tutors/add", methods=["GET", "POST"])
 def add_tutor():
@@ -811,23 +873,36 @@ def add_tutor():
             if phone:
                 tutor_info['phone_number'] = phone
 
-            # Gauti pasirinktus dalykus ir jų klases
+            # Surenkame dalykus
             subjects_raw = request.form.getlist('subjects')
             for subject in subjects_raw:
                 max_class_key = f"max_class_{subject}"
                 max_class = request.form.get(max_class_key, 12)
+
                 tutor_info['subjects'].append({
                     "subject": subject,
                     "max_class": int(max_class)
                 })
 
-            create_new_tutor(db.tutor, tutor_info)
+            # ---- DB OPERACIJOS ----
+            create_new_tutor(db.tutor, tutor_info)  # Mongo/SQL
+            #create_tutor(driver, tutor_info['first_name'], tutor_info['last_name'], tutor_info['subjects'])  # Neo4j
+            try:
+                add_tutor_clickhouse(client_clickhouse, tutor_info["first_name"], tutor_info["last_name"],
+                                     tutor_info["date_of_birth"])
+            except Exception as e:
+                print("ClickHouse insert error:", e)
+                flash("ClickHouse insert failed: " + str(e), "danger")
+
             flash("Korepetitorius sėkmingai pridėtas!", "success")
             return redirect(url_for("tutors"))
+
         except Exception as e:
             flash(str(e), "danger")
 
+
     return render_template("add_tutor.html")
+
 
 
 @app.route('/tutor/<tutor_id>/create_review', methods=['GET', 'POST'])
