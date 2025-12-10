@@ -2073,7 +2073,7 @@ def pending_requests(student_id):
     return jsonify(requests)
 
 
-# Принять заявку
+
 @app.route("/student/<student_id>/friends/accept", methods=["POST"])
 def accept_request_route(student_id):
     data = request.json
@@ -2100,7 +2100,15 @@ def decline_request_route(student_id):
                            current_student['first_name'], current_student['last_name'])
     return jsonify({"status": f"Draugystės prašymas nuo {from_first_name} {from_last_name} atmestas."})
 
-
+@app.route("/powerbi_report/")
+def tutor_powerbi_report():
+    back_url = "/tutors" if session.get("session_type") == "admin" else "/"
+    embed_url = "https://app.powerbi.com/view?r=eyJrIjoiMjYwYzY0OGYtOTczYy00N2UwLThhMDgtOGY5YTlkNmZhNzZlIiwidCI6IjgyYzUxYTgyLTU0OGQtNDNjYS1iY2Y5LWJmNGI3ZWIxZDAxMiIsImMiOjh9"
+    return render_template(
+        "powerbi_report.html",
+        embed_url=embed_url,
+        back_url=back_url
+    )
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5001, debug=True, allow_unsafe_werkzeug=True)
