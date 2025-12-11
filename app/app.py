@@ -115,7 +115,7 @@ from api.clickhouse_api import (
     add_student_clickhouse,
     delete_student_clickhouse,
     delete_tutor_clickhouse,
-    f_student_tutor_stats_add,
+    f_student_tutor_stat_add,
     update_studied_with_tutor_to,
     update_student_tutor_lesson_count,
     update_student_tutor_rating
@@ -553,6 +553,8 @@ def sign_up_student():
                         for subj in to_assign:
                             try:
                                 assign_student_to_tutor(db.tutor, db.student, tutor_id_str, str(student_id), subj)
+                                # TODO: add it to the fact table
+
                             except LockError:
                                 # skipinam tutor
                                 pass
@@ -922,7 +924,7 @@ def add_new_review_tutor(tutor_id):
     Pridedant naują atsiliepimą:
         - įrašome jį į MongoDB
         - aktyviai išvalome Redis kešą
-        - atnaujiname ClickHouse lentelėje f_student_tutor_stats mokinio vertinimą
+        - atnaujiname ClickHouse lentelėje f_student_tutor_stat mokinio vertinimą
     """
 
     # Gauname korepetitoriaus informaciją
@@ -965,6 +967,7 @@ def add_new_review_tutor(tutor_id):
         invalidate_student_review_cache(student_id)
 
         # ATNAUJINAME ClickHouse lentelėje mokinio vertinimą
+        # TODO: patikrinti, ar tikrai reikia atnaujintį atsiliepimą
         try:
             update_student_tutor_rating(
                 client_clickhouse,
@@ -990,7 +993,7 @@ def add_new_review_student(student_id):
     Įrašius atsiliepimą:
         - įrašome į MongoDB
         - aktyviai išvalome Redis kešą dėstytojui
-        - atnaujiname ClickHouse lentelėje f_student_tutor_stats studento vertinimą
+        - atnaujiname ClickHouse lentelėje f_student_tutor_stat studento vertinimą
     """
 
     # Gauname mokinio informaciją
@@ -1169,9 +1172,9 @@ def add_student_to_tutor(tutor_id):
                         # Gauname studento duomenis MongoDB
                         student = get_student_by_id(db['student'], student_id)
 
-                        # Pridedame į f_student_tutor_stats ClickHouse
+                        # Pridedame į f_student_tutor_stat ClickHouse
                         try:
-                            f_student_tutor_stats_add(
+                            f_student_tutor_stat_add(
                                 client_clickhouse,
                                 student_id,
                                 tutor_id,

@@ -314,26 +314,26 @@ def get_avg_rating(
 
 def fill_dw_data_in_clickhouse(
         dw_client,
-        f_student_tutor_statistcs,
-        d_student,
-        d_tutor,
-        d_school,
-        d_subjects
+        f_student_tutor_stat,
+        dim_student,
+        dim_tutor,
+        dim_schools,
+        dim_subjects
 ):
     # Save fact table
     dw_client.insert_df(
-        'f_student_tutor_stats',
-        f_student_tutor_statistcs
+        'f_student_tutor_stat',
+        f_student_tutor_stat
     )
 
     # Save dimension tables
-    d_tutor['date_of_birth'] = pd.to_datetime(d_tutor['date_of_birth'], errors='coerce')
-    dw_client.insert_df('d_tutors', d_tutor)
-    dw_client.insert_df('d_subjects', d_subjects)
-    dw_client.insert_df('d_schools', d_school)
+    dim_tutor['date_of_birth'] = pd.to_datetime(dim_tutor['date_of_birth'], errors='coerce')
+    dw_client.insert_df('dim_tutors', dim_tutor)
+    dw_client.insert_df('dim_subjects', dim_subjects)
+    dw_client.insert_df('dim_schoolss', dim_schools)
 
-    d_student['date_of_birth'] = pd.to_datetime(d_student['date_of_birth'], errors='coerce')
-    dw_client.insert_df('d_students', d_student)
+    dim_student['date_of_birth'] = pd.to_datetime(dim_student['date_of_birth'], errors='coerce')
+    dw_client.insert_df('dim_students', dim_student)
 
 
 def fill_dw_from_zero(
@@ -353,17 +353,17 @@ def fill_dw_from_zero(
         data, student_collection, tutor_collection
     )
 
-    f_student_tutor_statistcs = get_fact_table(fact_table_rows)
-    d_student = get_dimension_table(students)
-    d_tutor = get_dimension_table(tutors)
-    d_school = get_dimension_table(schools)
-    d_subjects = get_dimension_table(subjects)
+    f_student_tutor_stat = get_fact_table(fact_table_rows)
+    dim_student = get_dimension_table(students)
+    dim_tutor = get_dimension_table(tutors)
+    dim_schools = get_dimension_table(schools)
+    dim_subjects = get_dimension_table(subjects)
 
     # Get the number of lessons and the rating
     ratings = []
-    for _, data_row in f_student_tutor_statistcs.iterrows():
-        student_data = d_student.iloc[data_row['student_fk'], :]
-        tutor_data = d_tutor.iloc[data_row['tutor_fk'], :]
+    for _, data_row in f_student_tutor_stat.iterrows():
+        student_data = dim_student.iloc[data_row['student_fk'], :]
+        tutor_data = dim_tutor.iloc[data_row['tutor_fk'], :]
 
         ratings.append(get_avg_rating(
             student_data,
@@ -373,10 +373,10 @@ def fill_dw_from_zero(
 
     # Get lesson counts
     lesson_counts = []
-    for _, data_row in f_student_tutor_statistcs.iterrows():
-        student_data = d_student.iloc[data_row['student_fk'], :]
-        tutor_data = d_tutor.iloc[data_row['tutor_fk'], :]
-        subject = d_subjects.iloc[data_row['subject_fk'], 1]
+    for _, data_row in f_student_tutor_stat.iterrows():
+        student_data = dim_student.iloc[data_row['student_fk'], :]
+        tutor_data = dim_tutor.iloc[data_row['tutor_fk'], :]
+        subject = dim_subjects.iloc[data_row['subject_fk'], 1]
 
         lesson_counts.append(get_total_lessons(
             student_data,
@@ -385,17 +385,17 @@ def fill_dw_from_zero(
             lesson_collection
         ))
 
-    f_student_tutor_statistcs['total_lessons'] = lesson_counts
-    f_student_tutor_statistcs['rating'] = ratings
+    f_student_tutor_stat['total_lessons'] = lesson_counts
+    f_student_tutor_stat['rating'] = ratings
 
     # Push all data to SQL
     fill_dw_data_in_clickhouse(
         dw_client,
-        f_student_tutor_statistcs,
-        d_student,
-        d_tutor,
-        d_school,
-        d_subjects
+        f_student_tutor_stat,
+        dim_student,
+        dim_tutor,
+        dim_schools,
+        dim_subjects
     )
 
 

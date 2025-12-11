@@ -14,14 +14,14 @@ def add_student_clickhouse(client, first_name, last_name, class_num, school_name
     """Prideda studentą į ClickHouse"""
 
     # Gauname school_sk pagal school_name
-    school_result = client.query(f"SELECT school_sk FROM d_schools WHERE name = '{school_name}'")
+    school_result = client.query(f"SELECT school_sk FROM dim_schools WHERE name = '{school_name}'")
     if not school_result.result_set or not school_result.result_set[0]:
-        raise ValueError(f"Mokykla su vardu '{school_name}' nerasta ClickHouse lenteleje d_schools")
+        raise ValueError(f"Mokykla su vardu '{school_name}' nerasta ClickHouse lenteleje dim_schools")
 
     school_sk = school_result.result_set[0][0]
 
     # Randame naują student_sk
-    result = client.query("SELECT MAX(student_sk) FROM d_students")
+    result = client.query("SELECT MAX(student_sk) FROM dim_students")
     next_student_sk = result.result_set[0][0] + 1 if result.result_set[0][0] is not None else 1
 
     # Sukuriame naują studento įrašą
@@ -36,8 +36,8 @@ def add_student_clickhouse(client, first_name, last_name, class_num, school_name
         }
     )
 
-    # Įterpiame į d_students
-    client.insert_df("d_students", new_student)
+    # Įterpiame į dim_students
+    client.insert_df("dim_students", new_student)
     return next_student_sk
 
 
@@ -48,7 +48,7 @@ def delete_student_clickhouse(client, first_name, last_name):
     """
 
     # Surandame student_sk
-    query = f"SELECT student_sk FROM d_students WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
+    query = f"SELECT student_sk FROM dim_students WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
 
 
     result = client.query(query)
@@ -59,7 +59,7 @@ def delete_student_clickhouse(client, first_name, last_name):
     student_sk = result.result_set[0][0]
 
     # Ištriname studentą pagal student_sk
-    client.command(f"ALTER TABLE d_students DELETE WHERE student_sk = {student_sk}")
+    client.command(f"ALTER TABLE dim_students DELETE WHERE student_sk = {student_sk}")
 
     return True
 
@@ -67,7 +67,7 @@ def delete_student_clickhouse(client, first_name, last_name):
 def add_tutor_clickhouse(client, first_name, last_name, date_of_birth):
     """Prideda korepetitorių į clickhouse"""
 
-    result = client.query("SELECT MAX(tutor_sk) FROM d_tutors")
+    result = client.query("SELECT MAX(tutor_sk) FROM dim_tutors")
     next_tutor_sk = result.result_set[0][0] + 1
 
     new_tutor = pd.DataFrame(
@@ -79,7 +79,7 @@ def add_tutor_clickhouse(client, first_name, last_name, date_of_birth):
         }
     )
 
-    client.insert_df("d_tutors", new_tutor)
+    client.insert_df("dim_tutors", new_tutor)
     return next_tutor_sk
 
 
@@ -90,7 +90,7 @@ def delete_tutor_clickhouse(client, first_name, last_name, date_of_birth=None):
     """
 
     # Surandame tutor_sk
-    query = f"SELECT tutor_sk FROM d_tutors WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
+    query = f"SELECT tutor_sk FROM dim_tutors WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
 
 
     result = client.query(query)
@@ -101,7 +101,7 @@ def delete_tutor_clickhouse(client, first_name, last_name, date_of_birth=None):
     tutor_sk = result.result_set[0][0]
 
     # Ištriname korepetitorių pagal tutor_sk
-    client.command(f"ALTER TABLE d_tutors DELETE WHERE tutor_sk = {tutor_sk}")
+    client.command(f"ALTER TABLE dim_tutors DELETE WHERE tutor_sk = {tutor_sk}")
 
     return True
 
@@ -111,7 +111,7 @@ from bson import ObjectId
 
 def get_student_fk_clickhouse(client, student_id, db):
     """
-    Pagal MongoDB student_id suranda student_fk (student_sk) ClickHouse d_students.
+    Pagal MongoDB student_id suranda student_fk (student_sk) ClickHouse dim_students.
     Grąžina student_sk, arba None, jei nerasta.
     """
     # Gauname studentą iš MongoDB
@@ -125,7 +125,7 @@ def get_student_fk_clickhouse(client, student_id, db):
     class_num = student.get("class")
 
     # Surandame student_sk ClickHouse pagal first_name, last_name
-    query = f"SELECT student_sk FROM d_students WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
+    query = f"SELECT student_sk FROM dim_students WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
     if date_of_birth:
         dob_str = pd.to_datetime(date_of_birth).date()
         query += f" AND date_of_birth = '{dob_str}'"
@@ -141,7 +141,7 @@ def get_student_fk_clickhouse(client, student_id, db):
 
 def get_tutor_fk_clickhouse(client, tutor_id, db):
     """
-    Pagal MongoDB tutor_id suranda tutor_fk (tutor_sk) ClickHouse d_tutors.
+    Pagal MongoDB tutor_id suranda tutor_fk (tutor_sk) ClickHouse dim_tutors.
     Grąžina tutor_sk, arba None, jei nerasta.
     """
     # Gauname korepetitorių iš MongoDB
@@ -154,7 +154,7 @@ def get_tutor_fk_clickhouse(client, tutor_id, db):
     date_of_birth = tutor.get("date_of_birth")
 
     # Surandame tutor_sk ClickHouse pagal first_name
-    query = f"SELECT tutor_sk FROM d_tutors WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
+    query = f"SELECT tutor_sk FROM dim_tutors WHERE first_name = '{first_name}' AND last_name = '{last_name}'"
     if date_of_birth:
         dob_str = pd.to_datetime(date_of_birth).date()
         query += f" AND date_of_birth = '{dob_str}'"
@@ -180,9 +180,9 @@ def get_subject_sk_clickhouse(client, subject_name):
     return result.result_set[0][0]
 
 
-def f_student_tutor_stats_add(client, student_id, tutor_id, subject_name, db, rating=None, date=None, lessons=None):
+def f_student_tutor_stat_add(client, student_id, tutor_id, subject_name, db, rating=None, date=None, lessons=None):
     """
-    Prideda įrašą į ClickHouse lentelę f_student_tutor_stats su raktiniais student, tutor ir subject.
+    Prideda įrašą į ClickHouse lentelę f_student_tutor_stat su raktiniais student, tutor ir subject.
     rating ir date yra opcionalūs papildomi laukai.
     """
 
@@ -214,13 +214,13 @@ def f_student_tutor_stats_add(client, student_id, tutor_id, subject_name, db, ra
         }
     )
 
-    # Įterpiame į f_student_tutor_stats
-    client.insert_df("f_student_tutor_stats", new_record)
+    # Įterpiame į f_student_tutor_stat
+    client.insert_df("f_student_tutor_stat", new_record)
     return True
 
 def update_studied_with_tutor_to(client, student_id, tutor_id, db):
     """
-    Atnaujina studied_with_tutor_to į dabartinę datą ClickHouse lentelėje f_student_tutor_stats
+    Atnaujina studied_with_tutor_to į dabartinę datą ClickHouse lentelėje f_student_tutor_stat
     pagal student_fk, tutor_fk ir opcionaliai subject_fk.
     """
 
@@ -240,7 +240,7 @@ def update_studied_with_tutor_to(client, student_id, tutor_id, db):
 
     # Atnaujiname studied_with_tutor_to į dabartinę datą
     client.command(
-        f"ALTER TABLE f_student_tutor_stats UPDATE studied_with_tutor_to = now() WHERE {where_clause}"
+        f"ALTER TABLE f_student_tutor_stat UPDATE studied_with_tutor_to = now() WHERE {where_clause}"
     )
 
     return True
@@ -258,7 +258,7 @@ def update_student_tutor_rating(clickhouse_client, student_id, tutor_id, mongo_d
     tutor_fk = get_tutor_fk_clickhouse(clickhouse_client, tutor_id, mongo_db)
 
     clickhouse_client.command(
-        f"ALTER TABLE f_student_tutor_stats UPDATE rating = {round(avg_rating, 2)} WHERE student_fk = {student_fk} AND tutor_fk = {tutor_fk}"
+        f"ALTER TABLE f_student_tutor_stat UPDATE rating = {round(avg_rating, 2)} WHERE student_fk = {student_fk} AND tutor_fk = {tutor_fk}"
     )
 
     return True
@@ -266,7 +266,7 @@ def update_student_tutor_rating(clickhouse_client, student_id, tutor_id, mongo_d
 def update_student_tutor_lesson_count(ch, tutor_id : str, student_ids: list[str], db, lesson):
     tutor_fk = get_tutor_fk_clickhouse(ch, tutor_id, db)
     if tutor_fk is None:
-        raise ValueError(f"Tutor ID {tutor_id} nerastas d_tutors lentelėje")
+        raise ValueError(f"Tutor ID {tutor_id} nerastas dim_tutors lentelėje")
 
     for student_id in student_ids:
 
@@ -276,21 +276,21 @@ def update_student_tutor_lesson_count(ch, tutor_id : str, student_ids: list[str]
             continue
 
         existing = ch.query(f"""
-            SELECT total_lessons FROM f_student_tutor_stats
+            SELECT total_lessons FROM f_student_tutor_stat
             WHERE student_fk = {student_fk} AND tutor_fk = {tutor_fk}
         """).result_rows
 
         if existing:
             current = existing[0][0] + lesson
             ch.query(f"""
-                ALTER TABLE f_student_tutor_stats
+                ALTER TABLE f_student_tutor_stat
                 UPDATE total_lessons = {current}
                 WHERE student_fk = {student_fk} AND tutor_fk = {tutor_fk}
             """)
             print(f"🔄 Student {student_fk} + Tutor {tutor_fk} → total_lessons {current}")
         else:
             ch.insert(
-                "f_student_tutor_stats",
+                "f_student_tutor_stat",
                 [[student_fk, tutor_fk, 1]],
                 column_names=["student_fk", "tutor_fk", "total_lessons"]
             )
