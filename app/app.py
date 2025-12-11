@@ -553,7 +553,7 @@ def sign_up_student():
                         for subj in to_assign:
                             try:
                                 assign_student_to_tutor(db.tutor, db.student, tutor_id_str, str(student_id), subj)
-                                # TODO: add it to the fact table
+                                f_student_tutor_stat_add(client_clickhouse, student_id, tutor_id_str, subj, db)
 
                             except LockError:
                                 # skipinam tutor
@@ -965,19 +965,6 @@ def add_new_review_tutor(tutor_id):
 
         # Aktyviai išvalome Redis kešą
         invalidate_student_review_cache(student_id)
-
-        # ATNAUJINAME ClickHouse lentelėje mokinio vertinimą
-        # TODO: patikrinti, ar tikrai reikia atnaujintį atsiliepimą
-        try:
-            update_student_tutor_rating(
-                client_clickhouse,
-                student_id,
-                tutor_id,
-                db,
-                db['review']
-            )
-        except Exception as e:
-            flash(f'Nepavyko atnaujinti ClickHouse vertinimo: {e}', 'warning')
 
         flash('Atsiliepimas sėkmingai pateiktas!', 'success')
         return redirect(url_for('view_tutor', tutor_id=tutor_id))
