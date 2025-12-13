@@ -171,7 +171,7 @@ def get_subject_sk_clickhouse(client, subject_name):
     Pagal subject_name suranda subject_sk iš d_subject lentelės ClickHouse.
     Grąžina subject_sk arba None, jei nerasta.
     """
-    query = f"SELECT subject_sk FROM d_subjects WHERE name = '{subject_name}'"
+    query = f"SELECT subject_sk FROM dim_subjects WHERE name = '{subject_name}'"
     result = client.query(query)
 
     if not result.result_set or not result.result_set[0]:
