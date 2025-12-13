@@ -2093,7 +2093,7 @@ def decline_request_route(student_id):
 @app.route("/powerbi_report/")
 def tutor_powerbi_report():
     back_url = "/tutors" if session.get("session_type") == "admin" else "/"
-    embed_url = "https://app.powerbi.com/view?r=eyJrIjoiMjYwYzY0OGYtOTczYy00N2UwLThhMDgtOGY5YTlkNmZhNzZlIiwidCI6IjgyYzUxYTgyLTU0OGQtNDNjYS1iY2Y5LWJmNGI3ZWIxZDAxMiIsImMiOjh9"
+    embed_url = "https://app.powerbi.com/view?r=eyJrIjoiZjY1NjkyYjgtN2U5MS00ODIxLThiMzYtZjgwYmJmOWI2YTE4IiwidCI6IjgyYzUxYTgyLTU0OGQtNDNjYS1iY2Y5LWJmNGI3ZWIxZDAxMiIsImMiOjh9"
     return render_template(
         "powerbi_report.html",
         embed_url=embed_url,
