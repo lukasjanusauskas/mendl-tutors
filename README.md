@@ -17,6 +17,16 @@ Mėlynai žymime tai, ką mes fizinėse kolekcijose laikome objektais (viduje ko
 
 Diagramoje mėlynai pažymėtos lentelės laikomos Cassandra, o žaliai - Mongo. Ryšius su `sutdent` žymim oranžine spalva, o ryšius su `tutor` - mėlynai.
 
+### Data warehouse integracija
+
+Integracijai naudojome Clickhouse duomenų saugyklą (angl. *data-warehouse*). Jos diagrama pateikta žemiau.
+Duomenų saugyklos faktų ir dimensijų lentelių rikiavimo raktai (angl. *ordering keys*) paryškinti. 
+Jie taip pat yra ir pirminiai raktai, taigi jiems sukuriamas indeksas, šias parinkome dėl to, kad su šiais stulpeliais buvo planuota, kad darysime daugiausiai užklausų.
+Išorinių raktų atitikmenų pavadinimuose pabaigoje rašome fk (iš *foreign key*), generuotų raktų (angl. *surogate key*) pabaigoje rašome sk, pavyzdžiui `tutor_sk`, `subject_sk`.
+Skirtingomis spalvomis žymime faktų ir dimensijų lenteles.
+
+![](MENDL_DW-diagram.png)
+
 ## Projekto sturktūra
 ---
 
