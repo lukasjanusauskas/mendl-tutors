@@ -32,6 +32,10 @@ FACT_TABLE_COLUMNS = [
 ]
 
 
+class ItemNotFoundInMongo(Exception):
+    pass
+
+
 class DataWarehouseInitializer:
 
     def __init__(self):
@@ -62,6 +66,13 @@ class DataWarehouseInitializer:
         assert len(schools) > 0, "Nesurinkta mokyklu"
 
         self.dim_schools = []
+        
+        self.dim_schools.append( {
+            'school_sk': 0,
+            'name': 'Nenurodyta',
+            'nationality': 'Nenurodyta'
+        } )
+
         for ix, school in enumerate(schools):
             self.dim_schools.append({
                 'school_sk': ix + 1,
@@ -122,6 +133,15 @@ class DataWarehouseInitializer:
         """ Surenka korpetitorius ir sukuria jiems dimensine lentele. """
 
         self.dim_tutors = []
+
+        # I pradzia prideti nulini korepetitoriu 
+        self.dim_tutors.append( {
+            'tutor_sk': 0,
+            'first_name': 'Nenurodytas',
+            'last_name': 'Nenurodytas',
+            'date_of_birth': None
+        } )
+
         tutor_collection = self.mongo_driver['tutor']
 
         for ix, tutor in enumerate( tutor_collection.find({})):
@@ -140,17 +160,28 @@ class DataWarehouseInitializer:
                 return student_row['student_sk']
 
         else:
-            raise ValueError(f'Student {student} cannot be found in dim_students')
+            raise ItemNotFoundInMongo(f'Student {student} was not found in mongo - skip')
 
     def get_tutor_key(self, tutor):
+
+        # Jeigu korepetitorius neunordytas: grazinti 0
+        if (tutor['first_name'] is None and 
+            tutor['last_name'] is None):
+
+            return 0
+
+        # Pereinam per korepetirtoriu dimensine lenetele, jei korepetitorius nurodytas
         for tutor_row in self.dim_tutors:
+
+            # Grazinti rakta is karto
             if (tutor_row['first_name'] == tutor['first_name'] and
                 tutor_row['last_name'] == tutor['last_name']):
 
                 return tutor_row['tutor_sk']
 
+        # Jei nerastas perejus per visa dimensine lentele: mesti klaida
         else:
-            raise ValueError(f'Tutor {tutor} cannot be found in dim_students')
+            raise ItemNotFoundInMongo(f'Tutor {tutor} cannot be found in dim_tutors')
 
     def get_total_lessons(
         self,
@@ -222,11 +253,13 @@ class DataWarehouseInitializer:
 
     def make_fact_table(self):
         self.fact_table = []
-        self.dim_subjects_dict: dict = {}
+        self.dim_subjects_dict: dict = {
+            'Nenurodyta': 0
+        }
 
         query = """
         MATCH (s:Student)
-        OPTIONAL MATCH (t:Tutor)-[st_conn:TEACHES]->(s:Student)
+        OPTIONAL MATCH (t:Tutor)-[st_conn:TEACHES]->(s)
         RETURN s.first_name AS student_first_name, 
             s.last_name AS student_last_name, 
             s.class_num AS class,
@@ -241,18 +274,26 @@ class DataWarehouseInitializer:
 
         for student_tutor_pair in results:
 
-            # Jei dalykai nenurodyti - praleidziam
+            # Jei dalykai nenurodyti - sudarom sarasa is vieno elemento "Nenurodyta"
+            # Taip galesim daug kodo nekeisti ir nurodyti subject_fk - 0
             if student_tutor_pair['subjects'] is None:
-                continue
+                subjects = ["Nenurodyta"]
+            else:
+                subjects = student_tutor_pair['subjects']
 
-            for subject in student_tutor_pair['subjects']:
+            # Kiekvienam dalykui - viena eilute
+            for subject in subjects:
 
                 if subject in self.dim_subjects_dict:
                     subject_fk = self.dim_subjects_dict[subject]
+                # Jei nebuvo itrauktas i dimensine lentele, idedam
+                # Taip galesim surinkti dimensine lentele dalyku
                 else:
                     subject_fk = len(self.dim_subjects_dict)
                     self.dim_subjects_dict[subject] = subject_fk
 
+                # Kad butu patogiau ir nereiketu irasyti atskirai, sudedam studentu ir korepetitoriu
+                # vardus ir pavardes i dictionary ir pass'inam i funkcijas dictionary
                 student_data = {
                     'first_name': student_tutor_pair['student_first_name'],
                     'last_name': student_tutor_pair['student_last_name'],
@@ -262,15 +303,29 @@ class DataWarehouseInitializer:
                     'last_name': student_tutor_pair['tutor_last_name'],
                 }
 
-                self.fact_table.append({
-                    'student_fk': self.get_student_key(student_data),
-                    'tutor_fk': self.get_tutor_key(tutor_data),
-                    'subject_fk': subject_fk,
-                    'studied_with_tutor_from': datetime.now(),
-                    'studied_with_tutor_to': None,
-                    'total_lessons': self.get_total_lessons(student_data, tutor_data, subject),
-                    'rating': self.get_avg_rating(student_data, tutor_data),
-                })
+                # Jei nenurodytas korepetitorius - pamoku nera, reitingo nera
+                if tutor_data['first_name'] == None:
+                    total_lessons = 0
+                    rating = None
+                # Jei norodytas - surandam kiek pamoku ir koks reitingas
+                else:
+                    total_lessons = self.get_total_lessons(student_data, tutor_data, subject)
+                    rating = self.get_avg_rating(student_data, tutor_data)
+
+                try:
+                    self.fact_table.append({
+                        'student_fk': self.get_student_key(student_data),
+                        'tutor_fk': self.get_tutor_key(tutor_data),
+                        'subject_fk': subject_fk,
+                        'studied_with_tutor_from': datetime.now(),
+                        'studied_with_tutor_to': None,
+                        'total_lessons': total_lessons,
+                        'rating': rating
+                    })
+
+                except ItemNotFoundInMongo:
+                    # Jei mokinio ar korepetitoriaus nebuvo mongo - praleidziam
+                    continue
 
     def get_subjects_dim_table(self):
         self.dim_subjects = []
@@ -281,7 +336,6 @@ class DataWarehouseInitializer:
                 'name': subject_name
             })
 
-    
     def fill_dw_data_in_clickhouse(self):
         # Save fact table
         self.client.insert_df(
@@ -306,8 +360,6 @@ class DataWarehouseInitializer:
         self.dim_students = pd.DataFrame(self.dim_students)
         self.dim_students['date_of_birth'] = pd.to_datetime(self.dim_students['date_of_birth'], errors='coerce')
         self.client.insert_df('dim_students', self.dim_students)
-
-
 
     def main(self):
         self.get_all_schools()
