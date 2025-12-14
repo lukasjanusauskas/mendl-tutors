@@ -50,7 +50,8 @@ from api.student import (
     get_student_by_id,
     get_students_by_name,
     create_new_student,
-    delete_student
+    delete_student,
+    remove_tutor_from_student
 )
 from api.aggregates import (
     pay_month_student,
@@ -1253,6 +1254,61 @@ def remove_student_from_tutor_route(tutor_id, student_id):
 
     return redirect(url_for("view_tutor", tutor_id=tutor_id))
 
+@app.route("/student/<student_id>/remove_tutor/<tutor_id>", methods=["POST"])
+def remove_tutor_from_student_route(student_id, tutor_id):
+    if not check_student_session(session, student_id=student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
+    try:
+        try:
+            # Pašaliname studentą iš tutor dokumento
+            result = remove_student_from_tutor(db.tutor, tutor_id, student_id)
+
+            if result.get("removed"):
+                # Pašaliname korepetitorių nuorodą ir iš studento dokumento
+                try:
+                    student_remove_res = remove_tutor_from_student(db.student, tutor_id, student_id)
+                except LockError:
+                    flash('Mokinys šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.', 'warning')
+                    return redirect(url_for("view_student", student_id=student_id))
+                except Exception as e_st:
+                    flash(f"Klaida pašalinant korepetitoriaus nuorodą iš studento: {e_st}", "warning")
+
+                flash("Korepetitorius sėkmingai pašalintas!", "success")
+
+                # Gauname studentą ir visus priskirtus dalykus (subjects)
+                student = get_student_by_id(db.student, student_id)
+
+                # Patikrink, kad gautume visą dokumentą
+                student_doc = db.student.find_one({"_id": ObjectId(student_id)})
+                if not student_doc:
+                    flash("Studentas MongoDB nerastas.", "warning")
+                    student_doc = {}
+
+                tutor = get_tutor_by_id(db.tutor, tutor_id)
+
+                try:
+                    update_studied_with_tutor_to(
+                        client_clickhouse,
+                        student_id,
+                        tutor_id,
+                        db=db
+                    )
+                except Exception as e_ch:
+                    flash(f"Klaida atnaujinant ClickHouse: {str(e_ch)}", "warning")
+
+            else:
+                flash("Nepavyko pašalinti korepetitoriaus.", "danger")
+
+        except LockError:
+            flash('Mokinys šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.', 'warning')
+
+    except Exception as e:
+        flash(f"Nepavyko pašalinti mokinio: {str(e)}", "danger")
+
+    return redirect(url_for("view_student", student_id=student_id))
+
 
 @app.route('/student/<student_id>/review_list', methods=['GET'])
 def show_reviews_student(student_id):
@@ -2093,12 +2149,142 @@ def decline_request_route(student_id):
 @app.route("/powerbi_report/")
 def tutor_powerbi_report():
     back_url = "/tutors" if session.get("session_type") == "admin" else "/"
-    embed_url = "https://app.powerbi.com/view?r=eyJrIjoiMjYwYzY0OGYtOTczYy00N2UwLThhMDgtOGY5YTlkNmZhNzZlIiwidCI6IjgyYzUxYTgyLTU0OGQtNDNjYS1iY2Y5LWJmNGI3ZWIxZDAxMiIsImMiOjh9"
+    embed_url = "https://app.powerbi.com/view?r=eyJrIjoiZjY1NjkyYjgtN2U5MS00ODIxLThiMzYtZjgwYmJmOWI2YTE4IiwidCI6IjgyYzUxYTgyLTU0OGQtNDNjYS1iY2Y5LWJmNGI3ZWIxZDAxMiIsImMiOjh9"
     return render_template(
         "powerbi_report.html",
         embed_url=embed_url,
         back_url=back_url
     )
+
+
+@app.route("/student/<student_id>/add_tutor_to_student")
+def add_tutor_to_student(student_id):
+    # autorizacija
+    if not check_student_session(session, student_id=student_id):
+        flash("Nesate autorizuotas šiam puslapiui", "warning")
+        return redirect(url_for("index"))
+
+    back_url = url_for('students') if session.get('session_type') == 'admin' else url_for('view_student', student_id=student_id)
+
+    student = get_student_by_id(db.student, student_id)
+    if not student:
+        flash('Studentas nerastas', 'warning')
+        return redirect(back_url)
+
+    student_subjects = student.get("subjects", []) or []
+
+    recommended = []
+
+    try:
+        if student_subjects:
+            tutors_cursor = db.tutor.find({"subjects.subject": {"$in": student_subjects}})
+        else:
+            tutors_cursor = db.tutor.find({})
+
+        for t in tutors_cursor:
+            tutor_subjects = [s.get('subject') for s in t.get('subjects', [])]
+            matched = [s for s in tutor_subjects if s in student_subjects]
+            recommended.append({
+                "_id": str(t.get("_id")),
+                "first_name": t.get("first_name", ""),
+                "last_name": t.get("last_name", ""),
+                "email": t.get("email", ""),
+                "matched_subjects": matched,
+                "subjects_display": ", ".join([s.get("subject", "") for s in t.get("subjects", [])]),
+            })
+
+        # sortinam pagal daugiausia matchintus subjectus
+        recommended.sort(key=lambda x: len(x.get('matched_subjects', [])), reverse=True)
+
+    except Exception as e:
+        flash(f'Klaida gaunant rekomenduojamus korepetitorius: {e}', 'warning')
+
+    return render_template(
+        "add_tutor_to_student.html",
+        back_url=back_url,
+        student=student,
+        recommended_tutors=recommended,
+        student_subjects=student_subjects
+    )
+
+
+@app.route("/student/<student_id>/add_tutor_to_student/<tutor_id>", methods=["GET", "POST"])
+def add_tutor_to_student_route(student_id, tutor_id):
+    try:
+        tutor = get_tutor_by_id(db.tutor, tutor_id)
+
+        if request.method == "POST":
+            student_id = request.form.get("student_id")
+            subject = request.form.get("subject")
+            rating = request.form.get("rating")
+            lessons = request.form.get("lessons")
+            date = request.form.get("date")
+
+            try:
+                try:
+                    # Priskiriame mokinį MongoDB
+                    result = assign_student_to_tutor(
+                        db.tutor,
+                        db.student,
+                        tutor_id,
+                        student_id,
+                        subject
+                    )
+
+                    if result.modified_count > 0:
+                        flash("Korepetitorius sėkmingai priskirtas!", "success")
+
+                        # Gauname studento duomenis MongoDB
+                        student = get_student_by_id(db['student'], student_id)
+
+                        # Pridedame į f_student_tutor_stat ClickHouse
+                        try:
+                            f_student_tutor_stat_add(
+                                client_clickhouse,
+                                student_id,
+                                tutor_id,
+                                subject,
+                                db=db,
+                                rating=float(rating) if rating else None,
+                                lessons=int(lessons) if lessons else None,
+                                date=date
+                            )
+                        except Exception as e_ch:
+                            flash(f"Klaida įrašant ClickHouse: {str(e_ch)}", "warning")
+
+                        # Papildoma logika Neo4j
+                        set_student_tutor(
+                            driver,
+                            student['first_name'],
+                            student['last_name'],
+                            tutor['first_name'],
+                            tutor['last_name']
+                        )
+
+                        return redirect(url_for("view_student", student_id=student_id))
+                    else:
+                        flash("Nepavyko priskirti mokinio.", "danger")
+
+                except LockError:
+                    flash('Korepetitorius šiuo metu redaguojamas kito naudotojo, pabandykite vėliau.', 'warning')
+                    return redirect(url_for('view_student', student_id=student_id))
+
+            except Exception as e:
+                flash(f"Klaida: {str(e)}", "danger")
+
+        students = get_all_students(db.student)
+        return render_template(
+            "add_tutor_to_student.html",
+            tutor=tutor,
+            students=students
+        )
+
+    except Exception as e:
+        flash(f"Klaida: {str(e)}", "danger")
+        try:
+            return redirect(url_for("view_student", student_id=student_id))
+        except Exception:
+            return redirect(url_for("students"))
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5001, debug=True, allow_unsafe_werkzeug=True)

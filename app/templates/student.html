@@ -69,6 +69,11 @@
                     <i class="bi bi-pencil-square"></i> Palikti atsiliepimą
                 </a>
 
+                <a href="{{ url_for('add_tutor_to_student', student_id=student._id|string) }}"
+                   class="btn btn-outline-primary flex-grow-1">
+                    <i class="bi bi-people"></i> Pridėti korepetitorių
+                </a>
+
                 <a href="{{ url_for('payment_student', student_id=student._id|string) }}"
                    class="btn btn-outline-success flex-grow-1">
                     <i class="bi bi-credit-card"></i> Atlikti mokėjimą
@@ -158,6 +163,15 @@
                                    class="btn btn-outline-primary btn-sm mt-2">
                                     <i class="bi bi-chat-dots"></i> Rašyti žinutę
                                 </a>
+                                <form
+                                    action="{{url_for('remove_tutor_from_student_route', tutor_id=tutor._id, student_id=student._id) }}"
+                                    onsubmit="return confirm('Ar tikrai norite atsiimti šį atsiliepimą?')"
+                                    method="POST"
+                                >
+                                    <button type="submit" class="btn btn-outline-danger btn-sm mt-4">
+                                        <i class="bi bi-trash"></i> Panaikinti korepetitorių
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
