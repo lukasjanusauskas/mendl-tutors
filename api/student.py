@@ -160,6 +160,37 @@ def get_students_tutors(
     return tutors
 
 
+def remove_tutor_from_student(student_collection, tutor_id: str, student_id: str) -> dict:
+    """
+    Pašalina nuorodą į korepetitorių studento dokumente.
+    Naudoja Redis užraktą ant studento įrašo.
+    Grąžina {'removed': True/False}
+    """
+    lock = redis_client.lock(f"student:{student_id}", timeout=10)
+    if not lock.acquire(blocking=True, blocking_timeout=5):
+        raise LockError("Mokinys šiuo metu redaguojamas")
+
+    try:
+        update_res = student_collection.update_one(
+            {"_id": ObjectId(student_id)},
+            {
+                "$pull": {
+                    "tutor_ids": tutor_id,
+                    "tutors": {"tutor_id": tutor_id},
+                    "assigned_tutors": tutor_id
+                }
+            }
+        )
+
+        return {"removed": update_res.modified_count > 0}
+
+    finally:
+        try:
+            lock.release()
+        except:
+            pass
+
+
 if __name__ == "__main__":
     db = get_db()
     student_collection = db['student']
