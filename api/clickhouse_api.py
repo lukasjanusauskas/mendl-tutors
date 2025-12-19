@@ -179,6 +179,34 @@ def get_subject_sk_clickhouse(client, subject_name):
 
     return result.result_set[0][0]
 
+def get_tutors_subjects_ratings(client):
+    query = """
+        SELECT 
+            t.first_name,
+            t.last_name,
+            SUM(s.total_lessons) as lessons,
+            AVG(s.rating) as avg_rating
+        FROM dim_tutors t
+        LEFT JOIN f_student_tutor_stat s ON t.tutor_sk = s.tutor_fk
+        GROUP BY t.first_name, t.last_name
+        ORDER BY lessons DESC
+    """
+    result = client.query(query)
+
+    if not result.result_set:
+        return []
+
+    tutors = []
+    for row in result.result_set:
+        tutors.append({
+            'first_name': row[0],
+            'last_name': row[1],
+            'lessons': row[2] if row[2] is not None else 0,
+            'avg_rating': round(row[3], 2) if row[3] is not None else 0
+        })
+    
+    return tutors
+
 
 def f_student_tutor_stat_add(client, student_id, tutor_id, subject_name, db, rating=None, date=None, lessons=None):
     """

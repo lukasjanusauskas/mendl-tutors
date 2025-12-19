@@ -119,7 +119,8 @@ from api.clickhouse_api import (
     f_student_tutor_stat_add,
     update_studied_with_tutor_to,
     update_student_tutor_lesson_count,
-    update_student_tutor_rating
+    update_student_tutor_rating,
+    get_tutors_subjects_ratings
 )
 
 client_clickhouse = get_clickhouse_client()
@@ -2148,12 +2149,11 @@ def decline_request_route(student_id):
 
 @app.route("/powerbi_report/")
 def tutor_powerbi_report():
-    back_url = "/tutors" if session.get("session_type") == "admin" else "/"
-    embed_url = "https://app.powerbi.com/view?r=eyJrIjoiZjY1NjkyYjgtN2U5MS00ODIxLThiMzYtZjgwYmJmOWI2YTE4IiwidCI6IjgyYzUxYTgyLTU0OGQtNDNjYS1iY2Y5LWJmNGI3ZWIxZDAxMiIsImMiOjh9"
+    analytics=get_tutors_subjects_ratings(client_clickhouse)
+    
     return render_template(
         "powerbi_report.html",
-        embed_url=embed_url,
-        back_url=back_url
+        analytics=analytics
     )
 
 
