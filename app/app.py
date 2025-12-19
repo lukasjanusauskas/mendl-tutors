@@ -120,7 +120,13 @@ from api.clickhouse_api import (
     update_studied_with_tutor_to,
     update_student_tutor_lesson_count,
     update_student_tutor_rating,
-    get_tutors_subjects_ratings
+    get_tutors_subjects_ratings,
+    select_subject_lesson_counts,
+    select_school_counts,
+    select_tutors_all,
+    select_tutor_count,
+    select_student_count,
+    select_school_count
 )
 
 client_clickhouse = get_clickhouse_client()
@@ -2150,10 +2156,23 @@ def decline_request_route(student_id):
 @app.route("/powerbi_report/")
 def tutor_powerbi_report():
     analytics=get_tutors_subjects_ratings(client_clickhouse)
+
+    subject_lesson_counts = select_subject_lesson_counts(client_clickhouse)
+    school_counts = select_school_counts(client_clickhouse)
+    tutors_all = select_tutors_all(client_clickhouse)
+    tutor_count = select_tutor_count(client_clickhouse)
+    student_count = select_student_count(client_clickhouse)
+    school_count = select_school_count(client_clickhouse)
     
     return render_template(
         "powerbi_report.html",
-        analytics=analytics
+        analytics=analytics,
+        subject_lesson_counts=subject_lesson_counts,
+        school_counts=school_counts,
+        tutors_all=tutors_all,
+        tutor_count=tutor_count,
+        student_count=student_count,
+        school_count=school_count
     )
 
 
