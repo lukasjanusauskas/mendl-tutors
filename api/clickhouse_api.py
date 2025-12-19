@@ -184,10 +184,10 @@ def get_tutors_subjects_ratings(client):
         SELECT 
             t.first_name,
             t.last_name,
-            SUM(s.total_lessons) as lessons,
-            AVG(s.rating) as avg_rating
+            SUM(f.total_lessons) as lessons,
+            AVG(f.rating) as avg_rating
         FROM dim_tutors t
-        LEFT JOIN f_student_tutor_stat s ON t.tutor_sk = s.tutor_fk
+        LEFT JOIN f_student_tutor_stat f ON t.tutor_sk = f.tutor_fk
         GROUP BY t.first_name, t.last_name
         ORDER BY lessons DESC
     """
@@ -201,11 +201,75 @@ def get_tutors_subjects_ratings(client):
         tutors.append({
             'first_name': row[0],
             'last_name': row[1],
-            'lessons': row[2] if row[2] is not None else 0,
+            'lessons': row[2],
             'avg_rating': round(row[3], 2) if row[3] is not None else 0
         })
     
     return tutors
+
+def select_subject_lesson_counts(ch):
+
+    query = """
+    SELECT name, COUNT()
+    FROM f_student_tutor_stat
+    JOIN dim_subjects ON dim_subjects.subject_sk = f_student_tutor_stat.subject_fk
+    GROUP BY dim_subjects.name
+    """
+
+    return ch.query(query).result_set
+
+
+def select_school_counts(ch):
+
+    query = """
+    SELECT dim_schools.name, COUNT()
+    FROM dim_students
+    JOIN dim_schools ON dim_schools.school_sk = dim_students.school_fk
+    GROUP BY dim_schools.name
+    """
+
+    return ch.query(query).result_set
+
+
+
+def select_tutors_all(ch):
+
+    query = """
+    SELECT dim_tutors.first_name, dim_tutors.last_name, SUM(total_lessons), AVG(rating)
+    FROM f_student_tutor_stat
+    JOIN dim_tutors ON dim_tutors.tutor_sk = f_student_tutor_stat.tutor_fk
+    GROUP BY dim_tutors.tutor_sk, dim_tutors.first_name, dim_tutors.last_name 
+    """
+
+    return ch.query(query).result_set
+
+
+
+def select_tutor_count(ch):
+
+    query = " SELECT COUNT() FROM dim_tutors "
+
+    return ch.query(query).result_set
+
+
+def select_student_count(ch):
+
+    query = """
+    SELECT COUNT()
+    FROM dim_students
+    """
+
+    return ch.query(query).result_set
+
+
+def select_school_count(ch):
+
+    query = """
+    SELECT COUNT(*)
+    FROM dim_schools
+    """
+
+    return ch.query(query).result_set
 
 
 def f_student_tutor_stat_add(client, student_id, tutor_id, subject_name, db, rating=None, date=None, lessons=None):
