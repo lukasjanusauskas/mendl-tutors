@@ -210,7 +210,7 @@ def get_tutors_subjects_ratings(client):
 def select_subject_lesson_counts(ch):
 
     query = """
-    SELECT name, COUNT()
+    SELECT name, COUNT(*)
     FROM f_student_tutor_stat
     JOIN dim_subjects ON dim_subjects.subject_sk = f_student_tutor_stat.subject_fk
     GROUP BY dim_subjects.name
@@ -222,7 +222,7 @@ def select_subject_lesson_counts(ch):
 def select_school_counts(ch):
 
     query = """
-    SELECT dim_schools.name, COUNT()
+    SELECT dim_schools.name, COUNT(*)
     FROM dim_students
     JOIN dim_schools ON dim_schools.school_sk = dim_students.school_fk
     GROUP BY dim_schools.name
@@ -247,7 +247,7 @@ def select_tutors_all(ch):
 
 def select_tutor_count(ch):
 
-    query = " SELECT COUNT() FROM dim_tutors "
+    query = " SELECT COUNT(*) FROM dim_tutors "
 
     return ch.query(query).result_set
 
@@ -255,7 +255,7 @@ def select_tutor_count(ch):
 def select_student_count(ch):
 
     query = """
-    SELECT COUNT()
+    SELECT COUNT(*)
     FROM dim_students
     """
 
@@ -270,7 +270,6 @@ def select_school_count(ch):
     """
 
     return ch.query(query).result_set
-
 
 def f_student_tutor_stat_add(client, student_id, tutor_id, subject_name, db, rating=None, date=None, lessons=None):
     """
