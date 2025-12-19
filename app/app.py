@@ -2174,6 +2174,15 @@ def add_tutor_to_student(student_id):
     student_subjects = student.get("subjects", []) or []
 
     recommended = []
+    try:
+        assigned_tutor_ids = {
+            str(t["_id"]) for t in db.tutor.find(
+                {"students_subjects.student.student_id": student_id},
+                {"_id": 1}
+            )
+        }
+    except Exception:
+        assigned_tutor_ids = set()
 
     try:
         if student_subjects:
@@ -2182,10 +2191,20 @@ def add_tutor_to_student(student_id):
             tutors_cursor = db.tutor.find({})
 
         for t in tutors_cursor:
+            try:
+                tutor_id_str = str(t.get("_id"))
+            except Exception:
+                continue
+
+            # skip if tutor already assigned to student
+            if tutor_id_str in assigned_tutor_ids:
+                continue
+
             tutor_subjects = [s.get('subject') for s in t.get('subjects', [])]
             matched = [s for s in tutor_subjects if s in student_subjects]
+
             recommended.append({
-                "_id": str(t.get("_id")),
+                "_id": tutor_id_str,
                 "first_name": t.get("first_name", ""),
                 "last_name": t.get("last_name", ""),
                 "email": t.get("email", ""),
@@ -2193,7 +2212,7 @@ def add_tutor_to_student(student_id):
                 "subjects_display": ", ".join([s.get("subject", "") for s in t.get("subjects", [])]),
             })
 
-        # sortinam pagal daugiausia matchintus subjectus
+        # sort by number of matched subjects (desc)
         recommended.sort(key=lambda x: len(x.get('matched_subjects', [])), reverse=True)
 
     except Exception as e:
